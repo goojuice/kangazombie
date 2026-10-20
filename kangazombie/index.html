@@ -572,13 +572,14 @@ Object.assign(KZ.CONFIG, {
       button(KZ.Audio.muted ? S('muted') : S('sound'), 'mute', W - pad - bs * 1.4, pad * 0.5, bs * 1.4, bs * 0.8, KZ.Audio.muted ? 'rgba(200,40,40,0.75)' : 'rgba(0,0,0,0.5)', bs * 0.28);
       if (g.state !== 'playing' && g.state !== 'paused') return;
       if (g.state === 'playing') button('II', 'pause', W - pad * 1.5 - bs * 2.4, pad * 0.5, bs * 0.9, bs * 0.8, null, bs * 0.35);
-      text(S('score', { n: Math.floor(g.score) }), pad, pad + u * 0.5, u * 0.9, '#fff', 'left');
+      const at = document.getElementById('kzArcade') ? 64 : 0;   // room for the Arcade button (top-left) when hosted in the arcade
+      text(S('score', { n: Math.floor(g.score) }), pad, at + pad + u * 0.5, u * 0.9, '#fff', 'left');
       let hearts = ''; for (let i = 0; i < C.lives; i++) hearts += i < g.lives ? '♥' : '♡';
-      text(hearts + (g.shield ? '  +' + ((KZ.T.pickups.shield || {}).label || 'S') : ''), pad, pad + u * 1.7, u * 1.0, '#ff5a5a', 'left');
-      const m = g.multiplier(); if (g.combo > 0) text(S('combo', { n: g.combo }) + (m > 1 ? '  x' + m : ''), pad, pad + u * 2.9, u * 0.75, col.accent, 'left');
+      text(hearts + (g.shield ? '  +' + ((KZ.T.pickups.shield || {}).label || 'S') : ''), pad, at + pad + u * 1.7, u * 1.0, '#ff5a5a', 'left');
+      const m = g.multiplier(); if (g.combo > 0) text(S('combo', { n: g.combo }) + (m > 1 ? '  x' + m : ''), pad, at + pad + u * 2.9, u * 0.75, col.accent, 'left');
       // level (stage) name + progress to the next one
       const lvls = KZ.T.levels || [], lv = KZ.level(g.levelIdx), nx = lvls[g.levelIdx + 1];
-      let py = pad + u * 4;
+      let py = at + pad + u * 4;
       text(S('level', { n: g.levelIdx + 1, name: lv.name }), pad, py, u * 0.55, '#fff', 'left'); py += u * 0.55;
       if (nx) { const f = (g.dist - lv.distance) / (nx.distance - lv.distance); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(pad, py, u * 5, u * 0.25); ctx.fillStyle = '#ffe27a'; ctx.fillRect(pad, py, u * 5 * Math.min(1, f), u * 0.25); }
       py += u * 0.8;
@@ -1362,6 +1363,7 @@ KZ.THEME_ID = "kangazombie"; KZ.INLINE_ONLY = true; KZ.SPRITE_DATA = {"themes/ka
 })();
 
 </script>
-<a href="../" id="kzArcade" aria-label="Back to the arcade" style="position:fixed;z-index:2147483000;top:calc(env(safe-area-inset-top) + 3px);left:calc(env(safe-area-inset-left) + 3px);font:700 11px/1 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:999px;text-decoration:none;opacity:.6">← Arcade</a>
+<style>#kzArcade{position:fixed;z-index:2147483000;top:calc(env(safe-area-inset-top) + 8px);left:calc(env(safe-area-inset-left) + 8px);box-sizing:border-box;display:flex;align-items:center;gap:6px;height:50px;padding:0 18px 0 12px;font:900 20px/1 "Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;color:#1b1b2f;text-decoration:none;background:#ffcf5a linear-gradient(#fff6a8,#ffb830);border:4px solid #1b1b2f;border-radius:999px;box-shadow:0 4px 0 #1b1b2f,inset 0 3px 0 rgba(255,255,255,.7);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation}#kzArcade:active{transform:translateY(3px);box-shadow:0 1px 0 #1b1b2f}#kzArcade b{font-size:22px}</style>
+<a href="../" id="kzArcade" aria-label="Back to the arcade"><b>🏠</b>Arcade</a>
 </body>
 </html>

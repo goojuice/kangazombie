@@ -15,8 +15,17 @@ canvas{display:block;background:#000;border-radius:14px;box-shadow:0 0 0 5px #1b
 .btn.sel{background:linear-gradient(#b8ffcb,#33cc66)}
 .btn.blue{background:linear-gradient(#bfe8ff,#4aa8ff)}
 .btn.pink{background:linear-gradient(#ffd6ec,#ff6fb5)}
-#hudBtns{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;z-index:5}
-#hudBtns .btn{font-size:15px;padding:6px 10px;border-radius:14px}
+#hudBtns{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:calc(env(safe-area-inset-right) + 8px);display:flex;z-index:5}
+#hudBtns .btn{font-size:16px;height:48px;padding:0 12px;border-radius:16px;margin:0 0 0 6px}
+#legend{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 6px);transform:translateX(-50%);z-index:7;display:flex;flex-direction:column;gap:4px;
+ background:#fff8e6;color:#1b1b2f;border:3px solid #1b1b2f;border-radius:14px;box-shadow:0 4px 0 #1b1b2f;padding:5px 10px;font-size:13px;font-weight:900;white-space:nowrap}
+#legend .lr{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}
+#legend .who{color:#fff;border-radius:8px;padding:2px 6px;margin-right:2px}
+#legend .p1{background:#2a7fd4}#legend .p2{background:#e2369a}
+#legend kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 4px;font:900 13px/1 inherit;font-family:inherit;
+ background:linear-gradient(#fff,#ddd);border:2px solid #1b1b2f;border-radius:5px;box-shadow:0 2px 0 #1b1b2f}
+#legend span.l{margin:0 6px 0 1px;font-weight:700}
+#legend #legX{position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;border:2px solid #1b1b2f;background:#ffcf5a;font:900 13px/1 inherit;cursor:pointer;padding:0}
 .panel{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:6;text-align:center;color:#fff;
  background:radial-gradient(#3b2a6acc,#120c22ee)}
 .panel h1{font-size:64px;margin:0 0 4px;color:#ffe14d;-webkit-text-stroke:3px #1b1b2f;text-shadow:0 6px 0 #1b1b2f,0 0 24px #ff6fb5;letter-spacing:2px}
@@ -25,20 +34,30 @@ canvas{display:block;background:#000;border-radius:14px;box-shadow:0 0 0 5px #1b
 .panel small{opacity:.85;font-size:14px;max-width:720px;line-height:1.45}
 .hidden{display:none!important}
 #touch{position:absolute;inset:0;pointer-events:none;z-index:4}
-#touch .tb{position:absolute;pointer-events:auto;width:76px;height:76px;border-radius:50%;border:4px solid #1b1b2f;font-weight:900;font-size:22px;
- display:flex;align-items:center;justify-content:center;color:#1b1b2f;background:radial-gradient(circle at 35% 30%,#ffffffee,#ffd34dcc);box-shadow:0 4px 0 #1b1b2f;opacity:.85}
-#touch .tb.on{transform:translateY(3px);box-shadow:0 1px 0 #1b1b2f;opacity:1;filter:brightness(1.15)}
-#touch .tb.super{background:radial-gradient(circle at 35% 30%,#fff,#ff5ab0);animation:pulse .5s infinite alternate}
+#touch .tb{position:absolute;pointer-events:auto;width:76px;height:76px;border-radius:24px;border:4px solid #1b1b2f;font-weight:900;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;color:#1b1b2f;background:var(--c);
+ background-image:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0) 48%,rgba(0,0,0,.12));box-shadow:0 6px 0 #1b1b2f,inset 0 3px 0 rgba(255,255,255,.7)}
+#touch .tb i{font-style:normal;font-size:calc(var(--s) * .38);line-height:1}
+#touch .tb small{font-size:max(11px,calc(var(--s) * .17));line-height:1;margin-top:3px;white-space:nowrap}
+#touch.ov .tb{opacity:.9}
+#touch .tb.on{transform:translateY(5px);box-shadow:0 1px 0 #1b1b2f;filter:brightness(1.12)}
+#touch .tb.super{--c:#ff5ab0;animation:pulse .5s infinite alternate}
 @keyframes pulse{to{transform:scale(1.1)}}
 </style></head>
 <body>
 <div id="wrap"><canvas id="c" width="960" height="540"></canvas></div>
 <div id="hudBtns">
+ <button class="btn blue" id="bKeys" title="Show/hide the keys">⌨️ Keys</button>
  <button class="btn blue" id="bStage" title="Switch stage (key B)">🎨 Stage</button>
  <button class="btn blue" id="bMute" title="Sound on/off (key M)">🔊</button>
  <button class="btn blue" id="bMenu" title="Back to menu (Esc)">🏠</button>
 </div>
 <div id="touch" class="hidden"></div>
+<div id="legend" class="hidden">
+ <div class="lr" id="legP1"><b class="who p1">P1</b><kbd>W</kbd><span class="l">Jump</span><kbd>A</kbd><kbd>D</kbd><span class="l">Move</span><kbd>S</kbd><span class="l">Duck</span><kbd>F</kbd><span class="l">Hit</span><kbd>G</kbd><span class="l">Big Hit</span><kbd>H</kbd><span class="l">Special/Super</span><kbd>R</kbd><span class="l">Taunt</span></div>
+ <div class="lr" id="legP2"><b class="who p2">P2</b><kbd>↑</kbd><span class="l">Jump</span><kbd>←</kbd><kbd>→</kbd><span class="l">Move</span><kbd>↓</kbd><span class="l">Duck</span><kbd>J</kbd><span class="l">Hit</span><kbd>K</kbd><span class="l">Big Hit</span><kbd>L</kbd><span class="l">Special</span><kbd>;</kbd><span class="l">Taunt</span></div>
+ <button id="legX" title="Hide keys">✕</button>
+</div>
 <div class="panel" id="menu">
  <h1>CHIBI CLASH!</h1>
  <h2>Player 1 fighter</h2><div class="row" id="pick1"></div>
@@ -622,18 +641,24 @@ addEventListener('keyup', e => { const m = KEYMAP[e.code]; if (m) press(m[0], m[
 
 /* ---------------------------------------------------------------- input: touch (1P vs CPU) */
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || /[?&]touch=1/.test(location.search);
-const TB = [ // [label, key, left%, top% of canvas]
-  ['◀', 'left', 3, 70], ['▶', 'right', 19, 70], ['▲', 'up', 11, 52], ['▼', 'down', 11, 86],
-  ['👊', 'light', 72, 74], ['💥', 'heavy', 84, 62], ['✨', 'special', 90, 82], ['😜', 'taunt', 62, 88]];
+const TB = [ // [icon, label, key, colour, side (0 = left pad, 1 = action pad), col, row]
+  ['◀', 'Move', 'left', '#7cc4ff', 0, 0, 1], ['▲', 'Jump', 'up', '#7dea6a', 0, 1, 0], ['▼', 'Duck', 'down', '#7cc4ff', 0, 1, 1], ['▶', 'Move', 'right', '#7cc4ff', 0, 2, 1],
+  ['✨', 'Special', 'special', '#c99bff', 1, 1, 0], ['😜', 'Taunt', 'taunt', '#ffe14d', 1, 0, 0], ['👊', 'Hit', 'light', '#ffb347', 1, 0, 1], ['💥', 'Big Hit', 'heavy', '#ff6b5a', 1, 1, 1]];
 function buildTouch() {
   const box = $('touch'); box.innerHTML = '';
-  for (const [label, key, l, t] of TB) { const b = document.createElement('div'); b.className = 'tb'; b.textContent = label; b.dataset.key = key; b.dataset.l = l; b.dataset.t = t;
+  for (const [icon, label, key, col, side, cx, cy] of TB) { const b = document.createElement('div'); b.className = 'tb'; b.innerHTML = '<i>' + icon + '</i><small>' + label + '</small>';
+    b.dataset.key = key; b.dataset.side = side; b.dataset.cx = cx; b.dataset.cy = cy; b.style.setProperty('--c', col);
     const down = e => { e.preventDefault(); ac(); b.setPointerCapture && b.setPointerCapture(e.pointerId); b.classList.add('on'); press(0, key, true); };
     const up = e => { e.preventDefault(); b.classList.remove('on'); press(0, key, false); };
     b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
     box.appendChild(b); }
 }
-function updateTouch() { $('touch').classList.toggle('hidden', !(isTouch && G.mode !== '2p' && G.mode !== 'demo' && G.phase !== 'menu')); layout(); }
+let legendOn = localStorage.getItem('cc_keys') !== '0';
+function touchShown() { return isTouch && G.mode !== '2p' && G.mode !== 'demo' && G.phase !== 'menu'; }
+function updateTouch() { $('touch').classList.toggle('hidden', !touchShown());
+  const leg = legendOn && (!isTouch || G.mode === '2p'); $('legend').classList.toggle('hidden', !leg); $('legP2').classList.toggle('hidden', !!(G.mode && G.mode.startsWith('cpu') && G.phase !== 'menu'));
+  $('bKeys').classList.toggle('hidden', isTouch && G.mode !== '2p'); layout(); }
+function toggleKeys() { legendOn = !legendOn; localStorage.setItem('cc_keys', legendOn ? '1' : '0'); updateTouch(); }
 
 /* ---------------------------------------------------------------- UI */
 function nextTheme() { G.themeIdx = (G.themeIdx + 1) % THEMES.length; G.amb = []; popText(480, 160, theme().name + '!', '#fff', 30); sfx('boing'); }
@@ -647,11 +672,26 @@ function buildMenu() {
 }
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { ac(); startMatch({ mode: b.dataset.mode }); });
 $('bStage').onclick = e => { e.currentTarget.blur(); nextTheme(); }; $('bMute').onclick = e => { e.currentTarget.blur(); toggleMute(); }; $('bMenu').onclick = e => { e.currentTarget.blur(); showMenu(); };
+$('bKeys').onclick = e => { e.currentTarget.blur(); toggleKeys(); }; $('legX').onclick = toggleKeys;
 $('bRematch').onclick = () => startMatch(); $('bEndMenu').onclick = showMenu;
+// Screen: top bar (Arcade + HUD buttons), then the fight, then the touch pad or key legend underneath when there is room.
 function layout() {
-  const s = Math.min(innerWidth / CONFIG.W, innerHeight / CONFIG.H) * .98; cv.style.width = CONFIG.W * s + 'px'; cv.style.height = CONFIG.H * s + 'px';
-  const r = cv.getBoundingClientRect(), bs = Math.max(56, Math.min(96, 80 * s));
-  document.querySelectorAll('#touch .tb').forEach(b => { b.style.width = b.style.height = bs + 'px'; b.style.left = r.left + r.width * b.dataset.l / 100 + 'px'; b.style.top = r.top + r.height * b.dataset.t / 100 - bs / 2 + 'px'; });
+  const W = innerWidth, H = innerHeight, top = 66, wrap = $('wrap'), tOn = touchShown(), leg = $('legend');
+  const legH = leg.classList.contains('hidden') ? 0 : leg.offsetHeight + 12;
+  let s = Math.min(W / CONFIG.W, (H - top - legH) / CONFIG.H) * .98, pad = 0, ov = true;
+  if (tOn) { const want = 175, s2 = Math.min(W / CONFIG.W, (H - top - want) / CONFIG.H) * .98; if (s2 >= s * .72) { s = Math.max(s2, 0); ov = false; } }
+  const cw = CONFIG.W * s, ch = CONFIG.H * s; cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  if (tOn && !ov) { const free = H - top - ch; pad = free; wrap.style.cssText = 'top:' + top + 'px;bottom:auto;height:' + ch + 'px;margin-top:' + Math.min(16, Math.max(0, (free - 175) * .25)) + 'px'; }
+  else wrap.style.cssText = 'top:' + top + 'px;bottom:' + legH + 'px';
+  $('touch').classList.toggle('ov', ov);
+  const r = cv.getBoundingClientRect(), gap = 10;
+  const bs = ov ? Math.max(54, Math.min(76, H * .14)) : Math.max(56, Math.min(100, (H - r.bottom - gap * 3) / 2 - gap, W / 9));
+  const y0 = ov ? H - 2 * bs - gap - 12 : r.bottom + Math.max(gap, (H - r.bottom - (2 * bs + gap)) / 2);
+  const x0 = [Math.max(12, (ov ? 12 : r.left)), 0]; x0[1] = W - Math.max(12, ov ? 12 : W - r.right) - (2 * bs + gap);
+  document.querySelectorAll('#touch .tb').forEach(b => { const side = +b.dataset.side, cx = +b.dataset.cx, cy = +b.dataset.cy;
+    b.style.width = b.style.height = bs + 'px'; b.style.setProperty('--s', bs + 'px');
+    const sx = (side ? x0[1] : x0[0]) + cx * (bs + gap);
+    b.style.left = sx + 'px'; b.style.top = y0 + cy * (bs + gap) + 'px'; });
 }
 addEventListener('resize', layout);
 
@@ -660,15 +700,16 @@ let last = 0, acc = 0; const DT = 1 / 120;
 function frame(ts) {
   const dt = Math.min(.05, (ts - (last || ts)) / 1000); last = ts;
   if (!G.paused) { acc += dt; while (acc >= DT) { step(DT); acc -= DT; } }
-  const sp = document.querySelector('#touch [data-key=special]'); if (sp && G.fighters[0]) { const full = G.fighters[0].meter >= CONFIG.superCost; sp.classList.toggle('super', full); sp.textContent = full ? 'SUPER' : '✨'; }
+  const sp = document.querySelector('#touch [data-key=special]'); if (sp && G.fighters[0]) { const full = G.fighters[0].meter >= CONFIG.superCost; if (sp.classList.contains('super') !== full) { sp.classList.toggle('super', full); sp.querySelector('i').textContent = full ? '🌟' : '✨'; sp.querySelector('small').textContent = full ? 'SUPER!' : 'Special'; } }
   draw(); requestAnimationFrame(frame);
 }
 buildMenu(); buildTouch(); menuFighters(); $('bMute').textContent = G.sound ? '🔊' : '🔇';
 const QS = new URLSearchParams(location.search);
 if (QS.get('stage')) G.themeIdx = Math.max(0, THEMES.findIndex(t => t.id === QS.get('stage')));
 if (QS.get('demo')) { G.sound = false; startMatch({ mode: 'demo' }); }
-layout(); requestAnimationFrame(frame);
+updateTouch(); requestAnimationFrame(frame);
 window.CC = { G, CONFIG, FIGHTERS, THEMES, DRAWERS, STAGE_ART, step, draw, startMatch, startRound, nextTheme, press, inputs, showMenu };
 </script>
-<a href="../" id="kzArcade" aria-label="Back to the arcade" style="position:fixed;z-index:2147483000;top:calc(env(safe-area-inset-top) + 3px);left:calc(env(safe-area-inset-left) + 3px);font:700 11px/1 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:999px;text-decoration:none;opacity:.6">← Arcade</a>
+<style>#kzArcade{position:fixed;z-index:2147483000;top:calc(env(safe-area-inset-top) + 8px);left:calc(env(safe-area-inset-left) + 8px);box-sizing:border-box;display:flex;align-items:center;gap:6px;height:50px;padding:0 18px 0 12px;font:900 20px/1 "Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;color:#1b1b2f;text-decoration:none;background:#ffcf5a linear-gradient(#fff6a8,#ffb830);border:4px solid #1b1b2f;border-radius:999px;box-shadow:0 4px 0 #1b1b2f,inset 0 3px 0 rgba(255,255,255,.7);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation}#kzArcade:active{transform:translateY(3px);box-shadow:0 1px 0 #1b1b2f}#kzArcade b{font-size:22px}</style>
+<a href="../" id="kzArcade" aria-label="Back to the arcade"><b>🏠</b>Arcade</a>
 </body></html>
