@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Penguin Whack 2</title>
 <style>
@@ -43,6 +43,13 @@
   table{border-collapse:collapse;margin:0 auto;font-size:20px}
   td,th{border:3px solid var(--ol);padding:6px 12px;background:#fff}
   tr.win td{background:#fff3a0}
+</style>
+<!-- kz-ios-no-zoom: stop iOS Safari double-tap / pinch zoom. iOS ignores user-scalable=no. Canonical: /workspace/gaming/ios-no-zoom-snippet.html -->
+<style id="kz-ios-no-zoom-css">
+  html, body { touch-action: manipulation; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  canvas, #game, #wrap, .game { touch-action: none; }
+  button, .btn, a, [role="button"], .ov { touch-action: manipulation; }
+  input, select, textarea { font-size: 16px; }
 </style>
 </head>
 <body>
@@ -713,5 +720,47 @@ if (Q.get('demo') === 'medals') { // screenshot helper: some medals earned, unlo
 </script>
 <style>#kzArcade{position:fixed;z-index:2147483000;top:calc(env(safe-area-inset-top) + 8px);left:calc(env(safe-area-inset-left) + 8px);box-sizing:border-box;display:flex;align-items:center;gap:6px;height:50px;padding:0 18px 0 12px;font:900 20px/1 "Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;color:#1b1b2f;text-decoration:none;background:#ffcf5a linear-gradient(#fff6a8,#ffb830);border:4px solid #1b1b2f;border-radius:999px;box-shadow:0 4px 0 #1b1b2f,inset 0 3px 0 rgba(255,255,255,.7);-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation}#kzArcade:active{transform:translateY(3px);box-shadow:0 1px 0 #1b1b2f}#kzArcade b{font-size:22px}</style>
 <a href="../" id="kzArcade" aria-label="Back to the arcade"><b>🏠</b>Arcade</a>
+<!-- kz-ios-no-zoom script. Canonical: /workspace/gaming/ios-no-zoom-snippet.html -->
+<script>
+(function () {
+  if (window.__kzNoZoom) return;
+  window.__kzNoZoom = true;
+  var opts = { passive: false };
+  function block(e) { e.preventDefault(); }
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) {
+    document.addEventListener(ev, block, opts);
+  });
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }, opts);
+  var lastTouchEnd = 0;
+  document.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    if (now - lastTouchEnd < 300) {
+      var t = e.target;
+      var keep = t && t.closest && t.closest('button, a, input, select, textarea, label, .btn, [role="button"]');
+      if (!keep) e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, opts);
+  window.__kzNoZoomCheck = function () {
+    var meta = document.querySelector('meta[name="viewport"]');
+    var c = ((meta && meta.getAttribute('content')) || '').replace(/\s+/g, '');
+    var need = ['width=device-width', 'initial-scale=1', 'maximum-scale=1', 'user-scalable=no', 'viewport-fit=cover'];
+    var metaOk = need.every(function (k) { return c.indexOf(k) !== -1; });
+    var cv = document.querySelector('canvas, #game');
+    var ta = cv ? getComputedStyle(cv).touchAction : '';
+    var bodyTa = getComputedStyle(document.body).touchAction;
+    var htmlTa = getComputedStyle(document.documentElement).touchAction;
+    var inputsOk = Array.prototype.every.call(document.querySelectorAll('input,select,textarea'), function (el) {
+      return parseFloat(getComputedStyle(el).fontSize) >= 16;
+    });
+    return {
+      ok: !!(metaOk && ta === 'none' && (bodyTa === 'manipulation' || bodyTa === 'none') && (htmlTa === 'manipulation' || htmlTa === 'none') && window.__kzNoZoom === true && inputsOk),
+      metaOk: metaOk, canvasTouchAction: ta, bodyTouchAction: bodyTa, htmlTouchAction: htmlTa, inputsOk: inputsOk
+    };
+  };
+})();
+</script>
 </body>
 </html>

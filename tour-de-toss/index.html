@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Tour de Toss</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8D%85%3C/text%3E%3C/svg%3E">
@@ -40,6 +40,13 @@
   #title{flex-direction:column;justify-content:flex-end;padding-bottom:calc(env(safe-area-inset-bottom) + 4vh);box-sizing:border-box;pointer-events:none}
   #title > *{pointer-events:auto}
   #title .daily{font-size:17px;color:#fff;text-shadow:0 2px 0 var(--ol);margin-top:12px;text-align:center;padding:0 12px}
+</style>
+<!-- kz-ios-no-zoom: stop iOS Safari double-tap / pinch zoom. iOS ignores user-scalable=no. Canonical: /workspace/gaming/ios-no-zoom-snippet.html -->
+<style id="kz-ios-no-zoom-css">
+  html, body { touch-action: manipulation; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  canvas, #game, #wrap, .game { touch-action: none; }
+  button, .btn, a, [role="button"], .ov { touch-action: manipulation; }
+  input, select, textarea { font-size: 16px; }
 </style>
 </head>
 <body>
@@ -711,6 +718,48 @@ addEventListener('resize', resize); resize(); syncUI();
 if (window.kzPause) kzPause.onChange(p => { G.paused = p; if (p) hook('gameplayStop'); else if (G.phase === 'play') hook('gameplayStart'); });
 window.TT = { G, step, draw, startRound, endRound, throwAt, spawnRider, resize, CONFIG, THEMES };
 requestAnimationFrame(frame);
+</script>
+<!-- kz-ios-no-zoom script. Canonical: /workspace/gaming/ios-no-zoom-snippet.html -->
+<script>
+(function () {
+  if (window.__kzNoZoom) return;
+  window.__kzNoZoom = true;
+  var opts = { passive: false };
+  function block(e) { e.preventDefault(); }
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) {
+    document.addEventListener(ev, block, opts);
+  });
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }, opts);
+  var lastTouchEnd = 0;
+  document.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    if (now - lastTouchEnd < 300) {
+      var t = e.target;
+      var keep = t && t.closest && t.closest('button, a, input, select, textarea, label, .btn, [role="button"]');
+      if (!keep) e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, opts);
+  window.__kzNoZoomCheck = function () {
+    var meta = document.querySelector('meta[name="viewport"]');
+    var c = ((meta && meta.getAttribute('content')) || '').replace(/\s+/g, '');
+    var need = ['width=device-width', 'initial-scale=1', 'maximum-scale=1', 'user-scalable=no', 'viewport-fit=cover'];
+    var metaOk = need.every(function (k) { return c.indexOf(k) !== -1; });
+    var cv = document.querySelector('canvas, #game');
+    var ta = cv ? getComputedStyle(cv).touchAction : '';
+    var bodyTa = getComputedStyle(document.body).touchAction;
+    var htmlTa = getComputedStyle(document.documentElement).touchAction;
+    var inputsOk = Array.prototype.every.call(document.querySelectorAll('input,select,textarea'), function (el) {
+      return parseFloat(getComputedStyle(el).fontSize) >= 16;
+    });
+    return {
+      ok: !!(metaOk && ta === 'none' && (bodyTa === 'manipulation' || bodyTa === 'none') && (htmlTa === 'manipulation' || htmlTa === 'none') && window.__kzNoZoom === true && inputsOk),
+      metaOk: metaOk, canvasTouchAction: ta, bodyTouchAction: bodyTa, htmlTouchAction: htmlTa, inputsOk: inputsOk
+    };
+  };
+})();
 </script>
 </body>
 </html>
