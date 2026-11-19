@@ -96,61 +96,73 @@ addEventListener('keydown',function(e){if(e.code==='Escape'&&P.paused){e.stopImm
 <script>
 'use strict';
 /* ======================== Trolley Trouble ======================== *
- * Push a trolley around a made-up Aussie village shopping centre,
- * tick off a picture-and-word list, then check out. A cheeky bin
- * chicken may nick the last item — ring the bell, zoom past, or
- * chase it back. Comedy only, never a crash. */
+ * Supermarket edition. Push a trolley through a made-up corner
+ * supermarket with a few wide, colour-coded aisles, tick off a
+ * picture-and-word list, then pick a checkout lane (shortest queue =
+ * bonus). The bin chicken sneaks in through Receiving and may nick the
+ * last item: ring the bell, zoom past, or chase it back. Comedy only. */
 
 const TITLE = 'Trolley Trouble';  // official working title — swap this one string to rename
 document.title = TITLE;
-const MAPW = 2200, MAPH = 1500;
+const MAPW = 2000, MAPH = 1300;
 const CONFIG = {
   itemPts: 100, quickMax: 40, checkoutPts: 50, nobump: 40, shooBonus: 25, finishBonus: 200,
+  shortQueue: 30, itemTime: 3, speedyT: 7,
   shopperPenalty: 20, shopperTime: 2, wallPenalty: 8,
-  holdCollect: 0.4, holdCheckout: 0.45,
-  trolleyL: 52, trolleyW: 32,
-  bellCool: 1.15, ibisFirst: 4.5, ibisCool: 9, shooRange: 150, stealRange: 42, zoomShoo: 88,
-  /* Medal thresholds, set by Bruno Build KZ Engineering for this private preview
-     (17 Nov 2026). Same in Little Kids. Review after a real phone/iPad play.
-     A near-perfect 12-item run (3+4+5) with tidy speed bonuses, three clean
-     checkouts, a few bell shoos and the +200 finish is about 2000–2200.
-     Gold 1600 is about 75–80% of that (a clean full run that can miss a few quick bonuses).
-     Silver 1000 is a tidy Saturday Morning plus Rainy Arvo (7 items) with a couple of bumps.
-     Bronze 400 is a tidy Saturday Morning (3 items and a checkout, maybe one bump). */
-  medals: [ { id: 'bronze', name: 'Bronze', at: 400 }, { id: 'silver', name: 'Silver', at: 1000 }, { id: 'gold', name: 'Gold', at: 1600 } ]
+  holdCollect: 0.25, holdCheckout: 0.35, collectMaxSpd: 120, zoneR: 85,
+  trolleyL: 52, trolleyW: 32, trolleyR: 22,
+  bellCool: 1.15, ibisFirst: 5, ibisCool: 9, shooRange: 150, stealRange: 42, zoomShoo: 88,
+  /* Medal thresholds, retuned for the supermarket redesign by Bruno Build KZ Engineering (19 Nov 2026)
+     from driving-bot runs (5 seeds each, all three levels):
+       clean & quick (short queues, bell)   1978–2341  -> Gold 1950
+       ordinary (random lane, no bell, dawdles) 1809–1937 full run, 748 when it stalls -> Silver 1100
+       slow / messy (only gets part of a list)  ~60–350  -> Bronze 300 (about 3 items)
+     Same in Little Kids. Review after a real phone/iPad play. */
+  medals: [ { id: 'bronze', name: 'Bronze', at: 300 }, { id: 'silver', name: 'Silver', at: 1100 }, { id: 'gold', name: 'Gold', at: 1950 } ]
 };
+/* Short, quick levels: a tidy kid finishes each in about 30–45 seconds. */
 const LEVELS = [
-  { id: 'saturday', name: 'Saturday Morning', items: ['bread', 'apples', 'sausages'], time: 70, shoppers: 7, ibis: 1, slip: 0, xmas: false, rain: false },
-  { id: 'rainy', name: 'Rainy Arvo', items: ['carrots', 'paper', 'bandaids', 'bread'], time: 75, shoppers: 9, ibis: 1, slip: 0.22, xmas: false, rain: true },
-  { id: 'christmas', name: 'Christmas Eve Rush', items: ['ham', 'gingerbread', 'cherries', 'cards', 'bandaids'], time: 80, shoppers: 11, ibis: 2, slip: 0, xmas: true, rain: false }
+  { id: 'saturday', name: 'Saturday Morning', items: ['bread', 'apples', 'milk'], time: 60, shoppers: 4, ibis: 1, slip: 0, xmas: false, rain: false },
+  { id: 'rainy', name: 'Rainy Arvo', items: ['carrots', 'juice', 'bandaids', 'sausages'], time: 65, shoppers: 5, ibis: 1, slip: 0.22, xmas: false, rain: true },
+  { id: 'christmas', name: 'Christmas Eve Rush', items: ['ham', 'gingerbread', 'cherries', 'cards', 'icecream'], time: 75, shoppers: 6, ibis: 2, slip: 0, xmas: true, rain: false }
 ];
 const THEMES = [
   { id: 'hills', name: 'Hills Village', brick: '#c45c48', brick2: '#b04e3c', trim: '#f3d27a', roof: '#6b2b2b',
-    trolley: '#ffd23a', trolley2: '#ff9f1c', sky0: '#8ec8ff', sky1: '#d7eefe', floor: '#e8d7b8', floor2: '#d9c4a0',
-    plant: '#5aa83b', centreName: 'HILLS VILLAGE' },
+    trolley: '#ffd23a', trolley2: '#ff9f1c', sky0: '#8ec8ff', sky1: '#d7eefe', floor: '#f1e6cf', floor2: '#e6d6b6',
+    plant: '#5aa83b', centreName: 'HILLS VILLAGE FRESH' },
   { id: 'harbour', name: 'Harbour Markets', brick: '#6d8ba8', brick2: '#5c7a96', trim: '#f4e2c0', roof: '#3d4a5c',
-    trolley: '#3ec6c9', trolley2: '#1e8f9a', sky0: '#9ad4e8', sky1: '#e8f4fa', floor: '#e6dcc8', floor2: '#d0c4ae',
-    plant: '#6fa644', centreName: 'HARBOUR MARKETS' }
+    trolley: '#3ec6c9', trolley2: '#1e8f9a', sky0: '#9ad4e8', sky1: '#e8f4fa', floor: '#eef0ea', floor2: '#dde3da',
+    plant: '#6fa644', centreName: 'HARBOUR MARKETS FRESH' }
 ];
+/* Supermarket sections (kept under the old SHOPS name so the shared API still works). */
 const SHOPS = [
-  { id: 'fruit', name: "Pippa's Fruit Shop", short: 'Fruit', wall: '#e07a4a', wall2: '#c45c32', sign: '#fff4d6' },
-  { id: 'bakery', name: 'Loaf & Laugh Bakery', short: 'Bakery', wall: '#f3d27a', wall2: '#e0b84c', sign: '#fff8e8' },
-  { id: 'butcher', name: 'Chook & Co Butcher', short: 'Butcher', wall: '#e8a0a8', wall2: '#c96b76', sign: '#fff0f2' },
-  { id: 'chemist', name: 'Quick-as-a-Wink Chemist', short: 'Chemist', wall: '#8fd4c8', wall2: '#5aaea0', sign: '#f0fffb' },
-  { id: 'news', name: 'The Village Newsagent', short: 'Newsagent', wall: '#8ab0d4', wall2: '#5c86b0', sign: '#eef5ff' }
+  { id: 'bakery',   name: 'Bakery',          short: 'Bakery',      col: '#f6c95c', col2: '#d99a2b' },
+  { id: 'frozen',   name: 'Frozen',          short: 'Frozen',      col: '#9fe0f8', col2: '#3f9fd4' },
+  { id: 'dairy',    name: 'Dairy',           short: 'Dairy',       col: '#fbfbff', col2: '#7f9ad8' },
+  { id: 'bulk',     name: 'Bulk Bins',       short: 'Bulk',        col: '#e0bd93', col2: '#a8794a' },
+  { id: 'produce',  name: 'Fruit & Veg',     short: 'Fruit & Veg', col: '#9be07a', col2: '#43a62e' },
+  { id: 'hotbar',   name: 'Hot Bar & Deli',  short: 'Hot Bar',     col: '#ffa286', col2: '#d8573a' },
+  { id: 'drinks',   name: 'Drinks & Juice',  short: 'Drinks',      col: '#ffb8e3', col2: '#d4519f' },
+  { id: 'health',   name: 'Health & Beauty', short: 'Health',      col: '#c4b6ff', col2: '#7059d6' },
+  { id: 'seasonal', name: 'Seasonal',        short: 'Seasonal',    col: '#ff8080', col2: '#c81e3a' }
 ];
+const SECTIONS = SHOPS;
 const ITEMS = {
-  apples:      { name: 'Apples',      shop: 'fruit',   cols: ['#e23b3b', '#3fae2a'] },
-  cherries:    { name: 'Cherries',    shop: 'fruit',   cols: ['#c81e3a', '#3fae2a'] },
-  carrots:     { name: 'Carrots',     shop: 'fruit',   cols: ['#ff8a1a', '#3fae2a'] },
-  bread:       { name: 'Bread',       shop: 'bakery',  cols: ['#e0a04a', '#f3d27a'] },
-  gingerbread: { name: 'Gingerbread', shop: 'bakery',  cols: ['#a86a32', '#fff4d6'] },
-  sausages:    { name: 'Sausages',    shop: 'butcher', cols: ['#c45c48', '#8a3a30'] },
-  ham:         { name: 'Ham',         shop: 'butcher', cols: ['#e07a8a', '#f4c4cc'] },
-  bandaids:    { name: 'Band-aids',   shop: 'chemist', cols: ['#e8c878', '#fff4d6'] },
-  paper:       { name: 'Paper',       shop: 'news',    cols: ['#f6f1e4', '#7aa0c8'] },
-  cards:       { name: 'Cards',       shop: 'news',    cols: ['#c81e3a', '#2e8b4a'] }
+  apples:      { name: 'Apples',      shop: 'produce',  cols: ['#e23b3b', '#3fae2a'] },
+  cherries:    { name: 'Cherries',    shop: 'produce',  cols: ['#c81e3a', '#3fae2a'] },
+  carrots:     { name: 'Carrots',     shop: 'produce',  cols: ['#ff8a1a', '#3fae2a'] },
+  bread:       { name: 'Bread',       shop: 'bakery',   cols: ['#e0a04a', '#f3d27a'] },
+  gingerbread: { name: 'Gingerbread', shop: 'bakery',   cols: ['#a86a32', '#fff4d6'] },
+  sausages:    { name: 'Sausages',    shop: 'hotbar',   cols: ['#c45c48', '#8a3a30'] },
+  ham:         { name: 'Ham',         shop: 'hotbar',   cols: ['#e07a8a', '#f4c4cc'] },
+  bandaids:    { name: 'Band-aids',   shop: 'health',   cols: ['#e8c878', '#fff4d6'] },
+  cards:       { name: 'Cards',       shop: 'seasonal', cols: ['#c81e3a', '#2e8b4a'] },
+  milk:        { name: 'Milk',        shop: 'dairy',    cols: ['#ffffff', '#4da3ff'] },
+  icecream:    { name: 'Ice Cream',   shop: 'frozen',   cols: ['#ffb3c6', '#e0a04a'] },
+  juice:       { name: 'Juice',       shop: 'drinks',   cols: ['#ff9f1c', '#3fae2a'] },
+  lollies:     { name: 'Lollies',     shop: 'bulk',     cols: ['#ff7ad9', '#ffe11a'] }
 };
+
 
 const hook = name => { try { window.kzHooks && window.kzHooks[name] && window.kzHooks[name](); } catch (e) {} };
 const store = {
@@ -182,14 +194,19 @@ if (window.kzPause) kzPause.onChange(p => { G.paused = p; hook(p ? 'gameplayStop
 function resize() {
   const cw = innerWidth, ch = innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = cw * dpr; cv.height = ch * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  if (cw >= ch) { G.H = 540; G.W = Math.round(540 * cw / ch); } else { G.W = 540; G.H = Math.round(540 * ch / cw); }
+  const base = G.overview ? MAPH : (G.viewH || 540); // overview = whole-store preview for screenshots
+  if (cw >= ch) { G.H = base; G.W = Math.round(base * cw / ch); } else { G.W = base; G.H = Math.round(base * ch / cw); }
   G.L.port = G.H > G.W;
   G.L.hudY = G.L.port ? Math.max(118, 66 * G.H / innerHeight + 34) : 34;
   G.L.showPads = G.phase === 'play' && (G.usePads || G.L.port || cw < 900);
+  // world units hidden under the touch controls at the bottom of the screen
+  G.L.padH = G.L.port ? 200 * G.H / ch : ((G.usePads || cw < 900) ? 90 * G.H / ch : 0);
   syncPads();
 }
 function updateCam(dt) {
-  const c = G.trolley, cam = G.cam, look = G.phase === 'title' ? titleLook() : (c ? { x: c.x, y: c.y } : cam);
+  const c = G.trolley, cam = G.cam, padH = G.phase === 'play' ? (G.L.padH || 0) : 0, topH = G.phase === 'play' && G.L.port ? (G.L.hudY || 0) + 40 : 0;
+  // keep the trolley above the touch controls: aim the camera a little below it
+  const look = G.phase === 'title' ? titleLook() : (c ? { x: c.x, y: c.y + padH * 0.5 - topH * 0.25 } : cam);
   const dx = look.x - cam.x, dy = look.y - cam.y;
   const zx = G.W * 0.18, zy = G.H * 0.16;
   let tx = cam.x, ty = cam.y;
@@ -198,66 +215,196 @@ function updateCam(dt) {
   const k = 1 - Math.exp(-(G.phase === 'title' ? 1.4 : 4.2) * dt);
   cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
   const mx = G.W / 2, my = G.H / 2;
-  cam.x = clamp(cam.x, mx, MAPW - mx); cam.y = clamp(cam.y, my, MAPH - my);
+  // the camera may scroll past the store edges by the height of the HUD / touch controls,
+  // so the back wall and the tills can sit in the clear part of the screen
+  cam.x = clamp(cam.x, mx, MAPW - mx); cam.y = clamp(cam.y, my - topH, MAPH - my + padH);
 }
-function titleLook() { return { x: 1100 + Math.sin(G.t * 0.18) * 420, y: 360 + Math.cos(G.t * 0.14) * 30 }; }
+function titleLook() { return { x: 1000 + Math.sin(G.t * 0.18) * 520, y: 640 + Math.cos(G.t * 0.14) * 260 }; }
 function viewToWorld(x, y) { return { x: x + G.cam.x - G.W / 2, y: y + G.cam.y - G.H / 2 }; }
 function worldToView(x, y) { return { x: x - G.cam.x + G.W / 2, y: y - G.cam.y + G.H / 2 }; }
 
 function buildMap() {
-  const M = { solids: [], shops: [], plants: [], bins: [], benches: [], wet: [], signs: [], tiles: [] };
-  const solid = (x, y, w, h, kind) => M.solids.push({ x, y, w, h, kind: kind || 'wall' });
-  // outer walls
+  const M = { solids: [], shops: [], gondolas: [], bins: [], wet: [], lanes: [], walks: [] };
+  const solid = (x, y, w, h, kind, extra) => { const s = Object.assign({ x, y, w, h, kind: kind || 'wall' }, extra || {}); M.solids.push(s); return s; };
+  // outer walls (floor is 40..1960 x 40..1260)
   solid(-40, -40, MAPW + 80, 80); solid(-40, MAPH - 40, MAPW + 80, 80);
   solid(-40, 0, 80, MAPH); solid(MAPW - 40, 0, 80, MAPH);
-  const shopW = 380, shopH = 260, shopY = 40, gap = 20, startX = 80;
-  SHOPS.forEach((s, i) => {
-    const x = startX + i * (shopW + gap);
-    const doorX = x + shopW / 2, doorW = 90;
-    solid(x, shopY, shopW, shopH - 8, 'shop');
-    // a little verandah post either side of the door (player stays in the concourse)
-    solid(x, shopY + shopH - 8, (shopW - doorW) / 2, 16, 'shop');
-    solid(x + shopW - (shopW - doorW) / 2, shopY + shopH - 8, (shopW - doorW) / 2, 16, 'shop');
-    M.shops.push({
-      ...s, x, y: shopY, w: shopW, h: shopH,
-      cx: doorX, cy: shopY + shopH + 70,
-      zone: { x: doorX, y: shopY + shopH + 55, r: 78 }
-    });
+  const R = CONFIG.zoneR;
+  const sec = (id, rect, zx, zy, face) => {
+    const d = SHOPS.find(s => s.id === id);
+    const s = solid(rect[0], rect[1], rect[2], rect[3], rect[4] || 'counter', { sec: id });
+    const o = Object.assign({}, d, { x: s.x, y: s.y, w: s.w, h: s.h, face, cx: zx, cy: zy, zone: { x: zx, y: zy, r: R }, solid: s });
+    M.shops.push(o); return o;
+  };
+  // back wall: Bakery, Frozen, Dairy, Bulk (like the plan's Grab + Go / Frozen / Dairy / Bulk)
+  sec('bakery', [40, 40, 380, 110], 230, 235, 'down');
+  sec('frozen', [460, 40, 440, 110], 680, 235, 'down');
+  sec('dairy',  [940, 40, 400, 110], 1140, 235, 'down');
+  sec('bulk',   [1380, 40, 200, 110], 1480, 235, 'down');
+  // Stock & Receiving, top-right: the bin chicken's way in
+  solid(1620, 40, 340, 190, 'receiving');
+  M.receiving = { x: 1620, y: 40, w: 340, h: 190, door: { x: 1790, y: 255 } };
+  // Fruit & Veg along the right wall
+  sec('produce', [1860, 230, 100, 780], 1760, 640, 'left');
+  // left-centre: Hot Bar & Deli on the wall, then the Drinks and Health gondolas
+  sec('hotbar', [40, 340, 110, 380], 250, 530, 'right');
+  // five wide-spaced gondolas (aisles are 200+ wide, open at both ends)
+  const gx = [460, 720, 980, 1240, 1500], gTop = 340, gH = 400, gW = 60;
+  const gSec = ['drinks', 'health', null, null, null], gName = ['Drinks', 'Health', 'Snacks', 'Cereal', 'Pasta & Tins'];
+  gx.forEach((x, i) => {
+    if (gSec[i]) {
+      sec(gSec[i], [x, gTop, gW, gH, 'gondola'], x + gW + 70, 540, 'right');
+    } else solid(x, gTop, gW, gH, 'gondola', { label: gName[i] });
+    M.gondolas.push({ x, y: gTop, w: gW, h: gH, label: gName[i], sec: gSec[i] });
   });
-  // central fountain / planter
-  solid(1000, 680, 160, 160, 'planter');
-  M.plants.push({ x: 1080, y: 760, r: 70, kind: 'fountain' });
-  // side planters and benches
-  [[280, 760, 90, 70], [1880, 760, 90, 70], [620, 980, 80, 60], [1500, 980, 80, 60]].forEach(([x, y, w, h]) => {
-    solid(x - w / 2, y - h / 2, w, h, 'planter'); M.plants.push({ x, y, r: w * 0.45, kind: 'bush' });
-  });
-  M.benches.push({ x: 400, y: 760 }, { x: 1760, y: 760 }, { x: 1080, y: 980 });
-  M.bins.push({ x: 240, y: 620 }, { x: 1920, y: 620 }, { x: 800, y: 1000 }, { x: 1360, y: 1000 });
-  // checkout "The Tills"
-  const cx = 1680, cy = 1240, cw = 320, ch = 180;
-  solid(cx - cw / 2, cy - ch / 2, cw, ch - 20, 'checkout');
-  M.checkout = { x: cx, y: cy - 20, w: cw, h: ch, zone: { x: cx - 40, y: cy - 130, r: 90 } };
-  // wet-floor patches in the concourse
-  M.wet.push({ x: 700, y: 620, w: 180, h: 110 }, { x: 1280, y: 820, w: 200, h: 120 }, { x: 480, y: 1000, w: 160, h: 90 });
+  // Seasonal island near the entry
+  sec('seasonal', [1280, 1050, 160, 80, 'island'], 1360, 970, 'up');
+  // cashiers: three lanes next to the entry
+  const tillX = [440, 580, 720, 860], tillY = 1030, tillH = 120;
+  tillX.forEach((x, i) => solid(x, tillY, 40, tillH, 'till', { n: i }));
+  for (let i = 0; i < 3; i++) {
+    const x = tillX[i] + 40 + 50;
+    M.lanes.push({ i, x, y: tillY + 60, zone: { x, y: tillY + 60, r: 50 } });
+  }
+  M.checkout = { x: 670, y: tillY + 60, w: 460, h: tillH, zone: M.lanes[1].zone, lanes: M.lanes };
+  // café bottom-left (fenced), floral and the trolley bay near the entry
+  solid(40, 1030, 400, 230, 'cafe');
+  solid(1560, 1110, 90, 70, 'floral');
+  solid(1180, 1205, 90, 55, 'carts');
+  M.entry = { x: 1050, y: 1190, a: -Math.PI / 2, doorX: 960, doorW: 180 };
+  // bin chicken hangouts, all at the Receiving door
+  M.bins.push({ x: 1790, y: 262 }, { x: 1700, y: 282 }, { x: 1600, y: 292 });
+  // rain trodden in from the entry
+  M.wet.push({ x: 1050, y: 1060, w: 200, h: 100 }, { x: 700, y: 880, w: 180, h: 100 }, { x: 1500, y: 880, w: 200, h: 100 });
+  // shopper walks: the two cross aisles and down each aisle
+  M.walks.push([220, 250, 1560, 250], [200, 880, 1800, 880]);
+  [300, 620, 880, 1140, 1400, 1700].forEach(x => M.walks.push([x, 270, x, 880]));
   G.map = M;
+  buildGrid(M);
   return M;
+}
+/* ---- walk grid: used for the guide dots, Little Kids tap-to-drive and the layout tests ---- */
+const CS = 20;
+function clearAt(M, x, y, r) {
+  for (const s of M.solids) {
+    const nx = clamp(x, s.x, s.x + s.w), ny = clamp(y, s.y, s.y + s.h);
+    if ((x - nx) * (x - nx) + (y - ny) * (y - ny) < r * r) return false;
+  }
+  return true;
+}
+function buildGrid(M) {
+  const cols = Math.ceil(MAPW / CS), rows = Math.ceil(MAPH / CS), walk = new Uint8Array(cols * rows);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) walk[j * cols + i] = clearAt(M, i * CS + CS / 2, j * CS + CS / 2, CONFIG.trolleyR + 16) ? 1 : 0;
+  M.grid = { cols, rows, walk };
+}
+function walkableAt(x, y) {
+  const g = G.map.grid, i = Math.floor(x / CS), j = Math.floor(y / CS);
+  return i >= 0 && j >= 0 && i < g.cols && j < g.rows && g.walk[j * g.cols + i] === 1;
+}
+function nearestCell(x, y) {
+  const g = G.map.grid, ci = clamp(Math.floor(x / CS), 0, g.cols - 1), cj = clamp(Math.floor(y / CS), 0, g.rows - 1);
+  for (let r = 0; r < 12; r++) {
+    let best = -1, bd = 1e9;
+    for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) {
+      if (i < 0 || j < 0 || i >= g.cols || j >= g.rows || !g.walk[j * g.cols + i]) continue;
+      const d = Math.hypot(i * CS + CS / 2 - x, j * CS + CS / 2 - y); if (d < bd) { bd = d; best = j * g.cols + i; }
+    }
+    if (best >= 0) return best;
+  }
+  return -1;
+}
+function losClear(ax, ay, bx, by) {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 10);
+  for (let k = 1; k < n; k++) { const t = k / n; if (!walkableAt(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }
+  return true;
+}
+/* Shortest walkable route (8-way grid Dijkstra-lite, then string-pulled). Returns points or null. */
+function pathTo(sx, sy, tx, ty) {
+  if (!G.map) return null;
+  const g = G.map.grid, s = nearestCell(sx, sy), t = nearestCell(tx, ty);
+  if (s < 0 || t < 0) return null;
+  const N = g.cols * g.rows, prev = new Int32Array(N).fill(-1), cost = new Float32Array(N).fill(1e9);
+  const q = [s]; cost[s] = 0; prev[s] = s;
+  const nb = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.42], [1, -1, 1.42], [-1, 1, 1.42], [-1, -1, 1.42]];
+  // simple bucketed relaxation (grid is small)
+  let head = 0;
+  while (head < q.length) {
+    const c = q[head++]; if (c === t) continue;
+    const ci = c % g.cols, cj = (c / g.cols) | 0;
+    for (const [di, dj, w] of nb) {
+      const i = ci + di, j = cj + dj; if (i < 0 || j < 0 || i >= g.cols || j >= g.rows) continue;
+      const k = j * g.cols + i; if (!g.walk[k]) continue;
+      if (di && dj && (!g.walk[cj * g.cols + i] || !g.walk[j * g.cols + ci])) continue;
+      const nc = cost[c] + w; if (nc < cost[k] - 1e-3) { cost[k] = nc; prev[k] = c; q.push(k); }
+    }
+  }
+  if (prev[t] < 0) return null;
+  const cells = []; for (let c = t; ; c = prev[c]) { cells.push(c); if (c === s) break; }
+  cells.reverse();
+  const pts = cells.map(c => ({ x: (c % g.cols) * CS + CS / 2, y: ((c / g.cols) | 0) * CS + CS / 2 }));
+  pts.push({ x: tx, y: ty });
+  // string-pull
+  const out = [{ x: sx, y: sy }]; let i = 0;
+  while (i < pts.length - 1) {
+    let j = pts.length - 1;
+    while (j > i + 1 && !losClear(out[out.length - 1].x, out[out.length - 1].y, pts[j].x, pts[j].y)) j--;
+    out.push(pts[j]); i = j;
+  }
+  out.cost = cost[t] * CS;
+  return out;
+}
+/* Dead-end check: repeatedly peel off walkable cells (on a coarse 40px grid) that have
+   at most one open neighbour. A layout with no dead-end corridors peels nothing. */
+function deadEnds() {
+  const M = G.map, C2 = 40, cols = Math.ceil(MAPW / C2), rows = Math.ceil(MAPH / C2), w = new Uint8Array(cols * rows);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) w[j * cols + i] = clearAt(M, i * C2 + C2 / 2, j * C2 + C2 / 2, CONFIG.trolleyR) ? 1 : 0;
+  const peeled = [];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const k = j * cols + i; if (!w[k]) continue;
+      let n = 0; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([a, b]) => { const ii = i + a, jj = j + b; if (ii >= 0 && jj >= 0 && ii < cols && jj < rows && w[jj * cols + ii]) n++; });
+      if (n <= 1) { w[k] = 0; peeled.push({ x: i * C2 + C2 / 2, y: j * C2 + C2 / 2 }); changed = true; }
+    }
+  }
+  return peeled;
 }
 function shopById(id) { return G.map.shops.find(s => s.id === id); }
 function itemById(id) { return ITEMS[id]; }
 function remainingList() { return G.list.filter(it => !it.got && !it.stolen); }
-function nextNeeded() { return remainingList()[0] || null; }
+function nextNeeded() {
+  const r = remainingList(); if (!r.length) return null;
+  const t = G.trolley; if (!t) return r[0];
+  let best = r[0], bd = 1e9;
+  for (const it of r) { const z = shopById(it.shop).zone, d = dist(t.x, t.y, z.x, z.y); if (d < bd) { bd = d; best = it; } }
+  return best;
+}
 function basketCount() { return G.basket.length; }
-
+function shortLanes() { const m = Math.min(...G.queues); return G.queues.map((q, i) => q === m ? i : -1).filter(i => i >= 0); }
+/* Where should the kid go next? (stolen item > nearest list item > shortest checkout lane) */
+function currentTarget() {
+  if (!G.map || !G.trolley) return null;
+  const stolen = G.list.find(it => it.stolen);
+  if (stolen) {
+    if (stolen.dropX != null) return { x: stolen.dropX, y: stolen.dropY, label: 'Item', kind: 'drop' };
+    const b = G.ibises.find(i => i.item); if (b) return { x: b.x, y: b.y, label: 'Ibis!', kind: 'ibis' };
+  }
+  const it = nextNeeded();
+  if (it) { const z = shopById(it.shop).zone; return { x: z.x, y: z.y, label: it.name, kind: 'item', id: it.id }; }
+  const ln = G.map.lanes[shortLanes()[0] || 0]; return { x: ln.zone.x, y: ln.zone.y, label: 'Tills', kind: 'tills' };
+}
 function makeTrolley(x, y, a) {
   const th = theme();
   return { x, y, a, spd: 0, col: th.trolley, col2: th.trolley2, inv: 0, squash: 0, bumpT: 0 };
 }
 function spawnPlayer() {
-  G.trolley = makeTrolley(360, 1200, -Math.PI / 2);
+  const e = (G.map && G.map.entry) || { x: 1050, y: 1190, a: -Math.PI / 2 };
+  G.trolley = makeTrolley(e.x, e.y, e.a);
   G.cam.x = G.trolley.x; G.cam.y = G.trolley.y;
 }
 function placeTrolley(x, y, a) { if (!G.trolley) spawnPlayer(); G.trolley.x = x; G.trolley.y = y; G.trolley.a = a; G.trolley.spd = 0; }
-function maxSpd() { return G.littleKids ? 140 : 210; }
+function maxSpd() { return G.littleKids ? 150 : 225; }
 function onWet(t) {
   if (!G.map || !LEVELS[G.level].slip) return false;
   return G.map.wet.some(w => Math.abs(t.x - w.x) < w.w / 2 && Math.abs(t.y - w.y) < w.h / 2);
@@ -307,33 +454,38 @@ function bumpSolid(kind, x, y) {
 function spawnShoppers(n) {
   G.shoppers = [];
   const cols = [['#ff5a6a', '#d43548'], ['#4da3ff', '#2b74d4'], ['#7be36b', '#3fae2a'], ['#ff9f1c', '#e07800'], ['#c9a0ff', '#8a62d4'], ['#ff7ad9', '#d44ca8']];
+  const walks = G.map.walks.slice();
   for (let i = 0; i < n; i++) {
-    const x = 200 + Math.random() * 1800, y = 500 + Math.random() * 600;
-    G.shoppers.push({ x, y, tx: x, ty: y, vx: 0, vy: 0, a: 0, state: 'walk', st: 0, inv: 0, hop: 0,
-      col: cols[i % cols.length][0], col2: cols[i % cols.length][1], bag: i % 2 === 0, umb: LEVELS[G.level].rain && i % 2 === 0 });
-    pickShopperWalk(G.shoppers[i]);
+    const w = walks.splice(Math.floor(Math.random() * walks.length), 1)[0] || G.map.walks[i % G.map.walks.length];
+    const t = 0.15 + Math.random() * 0.7, x = lerp(w[0], w[2], t), y = lerp(w[1], w[3], t);
+    const s = { x, y, tx: x, ty: y, vx: 0, vy: 0, a: 0, state: 'walk', st: 0, inv: 0, hop: 0, wait: 0, walk: w, dir: Math.random() < 0.5 ? 0 : 1,
+      col: cols[i % cols.length][0], col2: cols[i % cols.length][1], bag: i % 2 === 0, umb: LEVELS[G.level].rain && i % 2 === 0 };
+    G.shoppers.push(s); pickShopperWalk(s);
   }
 }
 function pickShopperWalk(s) {
-  s.tx = clamp(200 + Math.random() * 1800, 160, MAPW - 160);
-  s.ty = clamp(480 + Math.random() * 620, 460, 1280);
+  const w = s.walk; s.dir = 1 - (s.dir || 0);
+  s.tx = s.dir ? w[2] : w[0]; s.ty = s.dir ? w[3] : w[1];
   s.state = 'walk'; s.st = 0;
 }
 function updateShoppers(dt) {
   const t = G.trolley;
   for (const s of G.shoppers) {
-    s.st += dt; s.inv = Math.max(0, s.inv - dt); s.hop = Math.max(0, s.hop - dt); s.oopsT = Math.max(0, (s.oopsT||0) - dt);
+    s.st += dt; s.inv = Math.max(0, s.inv - dt); s.hop = Math.max(0, s.hop - dt); s.oopsT = Math.max(0, (s.oopsT || 0) - dt);
     if (s.state === 'hop') {
       s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= Math.exp(-3 * dt); s.vy *= Math.exp(-3 * dt);
-      if (s.st > 0.55) { s.state = 'walk'; pickShopperWalk(s); }
+      if (s.st > 0.55) { s.state = 'walk'; s.st = 0; }
     } else if (s.state === 'walk') {
-      const dx = s.tx - s.x, dy = s.ty - s.y, d = Math.hypot(dx, dy);
-      if (d < 12 || s.st > 6) pickShopperWalk(s);
+      if (s.wait > 0) { s.wait -= dt; s.vx = 0; s.vy = 0; }
       else {
-        const spd = 55 + (s.bag ? 0 : 15);
-        const wantX = dx / d * spd, wantY = dy / d * spd;
-        s.vx += (wantX - s.vx) * 3 * dt; s.vy += (wantY - s.vy) * 3 * dt;
-        s.x += s.vx * dt; s.y += s.vy * dt; s.a = Math.atan2(s.vy, s.vx);
+        const dx = s.tx - s.x, dy = s.ty - s.y, d = Math.hypot(dx, dy);
+        if (d < 10) { s.wait = 0.5 + Math.random() * 1.2; pickShopperWalk(s); }
+        else {
+          const spd = 50 + (s.bag ? 0 : 15);
+          const wantX = dx / d * spd, wantY = dy / d * spd;
+          s.vx += (wantX - s.vx) * 3 * dt; s.vy += (wantY - s.vy) * 3 * dt;
+          s.x += s.vx * dt; s.y += s.vy * dt; s.a = Math.atan2(s.vy, s.vx);
+        }
       }
     }
     if (t && s.inv <= 0 && t.inv <= 0 && s.state !== 'hop') {
@@ -353,11 +505,12 @@ function updateShoppers(dt) {
   }
 }
 
+/* The bin chicken waits just inside the Receiving door (top-right) and sneaks out from there. */
 function spawnIbis(i) {
-  const bins = G.map.bins, b = bins[i % bins.length];
+  const R = G.map.receiving, home = G.map.bins[i % G.map.bins.length];
   const bird = {
-    x: b.x + (i * 18), y: b.y, vx: 0, vy: 0, a: 0, face: 1,
-    state: 'idle', st: 0, cool: CONFIG.ibisFirst + i * 3.5, item: null, bin: b, hop: 0, wing: 0
+    x: R.door.x + i * 26, y: R.door.y - 24, vx: 0, vy: 0, a: 0, face: -1,
+    state: 'idle', st: 0, cool: CONFIG.ibisFirst + i * 3.5, item: null, bin: home, hop: 0, wing: 0, from: 'receiving'
   };
   G.ibises.push(bird);
   return bird;
@@ -449,7 +602,7 @@ function updateIbis(dt) {
           // keep circling; player can still catch it. If it perches too long, item sits by the bin.
           if (b.st > 5 && b.item) {
             const it = b.item; it.dropX = b.x; it.dropY = b.y; b.item = null; b.state = 'idle'; b.cool = CONFIG.ibisCool;
-            G.hint = 'It dropped it by the bin! Grab it!'; G.hintT = 3;
+            G.hint = 'It dropped it by Receiving! Grab it!'; G.hintT = 3;
           }
         }
       }
@@ -471,7 +624,7 @@ function updateIbis(dt) {
 function startRound() {
   show('end', false); show('title', false);
   G.score = 0; G.bumps = 0; G.shopperBumps = 0; G.steals = 0; G.shoos = 0; G.bells = 0;
-  G.checkouts = 0; G.recovers = 0; G.itemsGot = 0; G.endWhy = ''; G.phase = 'play';
+  G.checkouts = 0; G.recovers = 0; G.itemsGot = 0; G.shortQs = 0; G.endWhy = ''; G.phase = 'play';
   G.tutorial = !store.get('played', false) || G.littleKids;
   startLevel(0); hook('gameplayStart'); sfx('start'); syncPads();
 }
@@ -480,59 +633,69 @@ function startLevel(i) {
   const L = LEVELS[i];
   buildMap();
   spawnPlayer();
-  spawnShoppers(L.shoppers + (G.littleKids ? -2 : 0));
+  spawnShoppers(Math.max(1, L.shoppers + (G.littleKids ? -2 : 0)));
   G.ibises = [];
   for (let n = 0; n < L.ibis; n++) spawnIbis(n);
   G.list = L.items.map(id => ({ id, got: false, stolen: false, name: ITEMS[id].name, shop: ITEMS[id].shop }));
+  // checkout queues: one lane is always clearly the shortest
+  const qs = [0, 2, 3]; for (let k = qs.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [qs[k], qs[r]] = [qs[r], qs[k]]; }
+  G.queues = qs;
   G.basket = []; G.stolen = null; G.collectHold = 0; G.checkoutHold = 0; G.bellCool = 0;
-  G.tripBumps = 0; G.tripT = 0;
+  G.tripBumps = 0; G.tripT = 0; G.guide = null; G.guideT = 0; G.nav = null;
   G.time = L.time + (G.littleKids ? 25 : 0);
-  G.hint = 'Level ' + (i + 1) + ': ' + L.name + '! Tick off the list, then check out.'; G.hintT = 4.2;
+  G.hint = 'Level ' + (i + 1) + ': ' + L.name + '! Follow the dots to your list.'; G.hintT = 3.2;
   G.levelFlash = 1.4; sfx(L.xmas ? 'carol' : 'chime');
 }
+function inZoneOf(it, t) { const sh = shopById(it.shop); return sh && dist(t.x, t.y, sh.zone.x, sh.zone.y) < sh.zone.r ? sh : null; }
 function tryCollect(dt) {
   const t = G.trolley, need = remainingList();
   if (!need.length) { G.collectHold = 0; return null; }
   let hit = null;
-  for (const it of need) {
-    const sh = shopById(it.shop);
-    if (sh && dist(t.x, t.y, sh.zone.x, sh.zone.y) < sh.zone.r && Math.abs(t.spd) < 70) { hit = { it, sh }; break; }
-  }
+  for (const it of need) { const sh = inZoneOf(it, t); if (sh && Math.abs(t.spd) < CONFIG.collectMaxSpd) { hit = { it, sh }; break; } }
   if (!hit) { G.collectHold = 0; return null; }
   G.collectHold += dt;
   if (Math.abs(t.spd) > 12) t.spd *= Math.exp(-6 * dt); // arcade settle
   if (G.collectHold >= CONFIG.holdCollect) {
     const { it, sh } = hit;
     it.got = true; G.basket.push(it); G.itemsGot++;
+    const quick = Math.max(0, Math.round(CONFIG.quickMax - (G.tripT || 0) * 1.5));
+    const speedy = (G.tripT || 0) < CONFIG.speedyT;
     G.collectHold = 0; G.tripT = 0;
-    const quick = Math.max(0, Math.round(CONFIG.quickMax - G.tripT * 1.2));
     const pts = CONFIG.itemPts + quick;
-    G.score += pts;
-    Juice.pop(t.x, t.y - 64, 'Got it!', '#fff', 26, 1);
-    Juice.pop(t.x + 36, t.y - 96, '+' + pts, '#ffe11a', 22, 1);
-    Juice.burst(sh.zone.x, sh.zone.y, 16, ['#ffe11a', '#fff', '#7be36b'], { shape: 'star', speed: 260, up: 160, g: 400, size: 5, life: 0.8 });
-    Juice.hitStop(0.05); Juice.trauma(0.16); sfx('got');
+    G.score += pts; G.time += CONFIG.itemTime;
+    Juice.pop(t.x, t.y - 64, speedy ? 'Speedy! ' + it.name + '!' : 'Got the ' + it.name + '!', '#fff', 26, 1);
+    Juice.pop(t.x + 40, t.y - 98, '+' + pts, '#ffe11a', 22, 1);
+    Juice.pop(t.x - 44, t.y - 98, '+' + CONFIG.itemTime + 's', '#7be36b', 18, 1);
+    Juice.burst(t.x, t.y - 10, 22, ['#ffe11a', '#fff', '#7be36b', sh.col2], { shape: 'star', speed: 280, up: 180, g: 400, size: 6, life: 0.9 });
+    Juice.hitStop(0.05); Juice.trauma(0.16); sfx('got'); sfx('cheer');
     if (remainingList().length === 0 && !G.list.some(x => x.stolen)) {
-      G.hint = 'List done! Head to The Tills!'; G.hintT = 4; sfx('chime');
-    } else G.hint = 'Nice. Next up!'; G.hintT = 2;
+      G.hint = 'List done! Zoom to the shortest checkout queue!'; G.hintT = 3; sfx('chime');
+    } else { G.hint = ''; G.hintT = 0; }
+    G.guideT = 0;
     return it;
   }
   return null;
 }
+function laneAt(t) { return G.map.lanes.find(l => dist(t.x, t.y, l.zone.x, l.zone.y) < l.zone.r) || null; }
 function tryCheckout(dt) {
   if (remainingList().length || G.list.some(x => x.stolen) || G.basket.length < G.list.length) { G.checkoutHold = 0; return false; }
-  const t = G.trolley, z = G.map.checkout.zone;
-  if (dist(t.x, t.y, z.x, z.y) >= z.r || Math.abs(t.spd) > 70) { G.checkoutHold = 0; return false; }
+  const t = G.trolley, lane = laneAt(t);
+  if (!lane || Math.abs(t.spd) > CONFIG.collectMaxSpd) { G.checkoutHold = 0; return false; }
   G.checkoutHold += dt;
   if (Math.abs(t.spd) > 12) t.spd *= Math.exp(-6 * dt);
   if (G.checkoutHold >= CONFIG.holdCheckout) {
     G.checkoutHold = 0;
     let pts = CONFIG.checkoutPts;
     G.score += pts; G.checkouts++;
-    if (G.tripBumps === 0) { pts += CONFIG.nobump; G.score += CONFIG.nobump; Juice.pop(t.x, t.y - 80, 'Clean run! +' + (CONFIG.checkoutPts + CONFIG.nobump), '#7be36b', 24, 1); }
+    const z = lane.zone;
+    if (shortLanes().includes(lane.i)) {
+      G.score += CONFIG.shortQueue; G.shortQs = (G.shortQs || 0) + 1;
+      Juice.pop(t.x, t.y - 150, 'Short queue! +' + CONFIG.shortQueue, '#7be36b', 22, 1.1);
+    }
+    if (G.tripBumps === 0) { G.score += CONFIG.nobump; Juice.pop(t.x, t.y - 80, 'Clean run! +' + (CONFIG.checkoutPts + CONFIG.nobump), '#7be36b', 24, 1); }
     else Juice.pop(t.x, t.y - 80, 'Checked out! +' + CONFIG.checkoutPts, '#fff', 24, 0.9);
-    Juice.burst(z.x, z.y, 20, ['#ffe11a', '#fff', '#7be36b', '#ff9f1c'], { shape: 'confetti', speed: 300, up: 180, g: 400, size: 5, life: 0.9 });
-    sfx('checkout');
+    Juice.burst(z.x, z.y, 26, ['#ffe11a', '#fff', '#7be36b', '#ff9f1c'], { shape: 'confetti', speed: 320, up: 200, g: 400, size: 5, life: 1 });
+    sfx('checkout'); sfx('cheer');
     if (G.level >= LEVELS.length - 1) {
       G.score += CONFIG.finishBonus;
       Juice.pop(t.x, t.y - 120, 'All done! +' + CONFIG.finishBonus, '#ffe11a', 28, 1.2);
@@ -548,6 +711,12 @@ function updateTrip(dt) {
   if (G.phase !== 'play' || !G.trolley) return;
   G.tripT = (G.tripT || 0) + dt;
   G.bellCool = Math.max(0, G.bellCool - dt);
+  G.guideT = (G.guideT || 0) - dt;
+  if (G.guideT <= 0) {
+    G.guideT = 0.35;
+    const tg = currentTarget();
+    G.guide = tg ? pathTo(G.trolley.x, G.trolley.y, tg.x, tg.y) : null;
+  }
   tryCollect(dt);
   tryCheckout(dt);
 }
@@ -686,6 +855,7 @@ function sfx(k) {
     ibis: () => { chirp(520 * p, 340 * p, 0.11, 0.11, 0, 'sawtooth', 3); chirp(480 * p, 300 * p, 0.12, 0.08, 0.1, 'triangle', 2); tone('sine', 240 * p, 200 * p, 0.1, 0.04, 0.02); },
     ibisSoft: () => { chirp(400 * p, 320 * p, 0.1, 0.06, 0, 'triangle', 3); },
     start: () => { tone('square', 480, 480, 0.07, 0.05); tone('square', 480, 480, 0.07, 0.05, 0.12); [784, 1047].forEach((f, i) => tone('sine', f, f, 0.15, 0.08, 0.28 + i * 0.1)); },
+    cheer: () => { [523, 659, 784, 1047].forEach((f, i) => tone('square', f * p, f * p * 1.02, 0.08, 0.03, 0.1 + i * 0.05)); hiss(0.22, 0.025, 'bandpass', 3000, 1600, 0.08, 1.2); },
     chime: () => [1047, 1319, 1568, 2093].forEach((f, i) => tone('sine', f, f, 0.22, 0.07, i * 0.07)),
     carol: () => [523, 659, 784, 1047].forEach((f, i) => tone('sine', f, f, 0.22, 0.06, i * 0.12)),
     fanfare: () => [784, 988, 1175, 1568].forEach((f, i) => tone('triangle', f, f, i === 3 ? 0.5 : 0.15, 0.09, i * 0.12)),
@@ -736,126 +906,206 @@ function draw() {
 function drawWorld() {
   if (!G.map) buildMap();
   const th = theme(), M = G.map;
-  // floor
+  // checker floor (only visible tiles)
   const tl = worldToView(0, 0), br = worldToView(MAPW, MAPH);
-  ctx.fillStyle = th.floor; ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-  // tile grid
-  ctx.strokeStyle = 'rgba(80,60,40,.12)'; ctx.lineWidth = 1;
-  for (let x = 0; x <= MAPW; x += 50) { const a = worldToView(x, 0), b = worldToView(x, MAPH); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-  for (let y = 0; y <= MAPH; y += 50) { const a = worldToView(0, y), b = worldToView(MAPW, y); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-  // wet patches
-  if (LEVELS[G.level] && LEVELS[G.level].rain) {
-    for (const w of M.wet) {
-      const p = worldToView(w.x, w.y);
-      ctx.save(); ctx.translate(p.x, p.y); ctx.globalAlpha = 0.45;
-      rr(-w.w / 2, -w.h / 2, w.w, w.h, 12); olFill('#7eb7d8', 3);
-      ctx.restore();
-    }
+  // outside the store: car park with the trolley bay (seen when the camera scrolls past the walls)
+  ctx.fillStyle = '#8d939c'; ctx.fillRect(0, 0, G.W, G.H);
+  if (br.y < G.H) {
+    ctx.strokeStyle = '#f4f1ea'; ctx.lineWidth = 4;
+    for (let x = 80; x < MAPW; x += 140) { const a = worldToView(x, MAPH + 70); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x, a.y + 160); ctx.stroke(); }
+    const cb = worldToView(1180, MAPH + 60);
+    for (let i = 0; i < 5; i++) { rr(cb.x + i * 22, cb.y, 40, 40, 5); olFill(i % 2 ? th.trolley : th.trolley2, 2); }
+    txt('TROLLEYS', cb.x + 64, cb.y + 58, 13, '#fff');
   }
-  // shops
-  for (const s of M.shops) drawShop(s);
-  // checkout
-  drawCheckout(M.checkout);
-  // planters, benches, bins
-  for (const p of M.plants) drawPlant(p);
-  for (const b of M.benches) drawBench(b.x, b.y);
-  for (const b of M.bins) drawBin(b.x, b.y);
+  ctx.fillStyle = th.floor; ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  const v0 = viewToWorld(0, 0), T = 80;
+  ctx.fillStyle = th.floor2;
+  for (let y = Math.max(0, Math.floor(v0.y / T) * T); y < Math.min(MAPH, v0.y + G.H + T); y += T)
+    for (let x = Math.max(0, Math.floor(v0.x / T) * T); x < Math.min(MAPW, v0.x + G.W + T); x += T)
+      if (((x / T) + (y / T)) % 2 === 0) { const p = worldToView(x, y); ctx.fillRect(p.x, p.y, T, T); }
+  // produce floor (green) like the plan
+  { const p = worldToView(1580, 230); ctx.globalAlpha = 0.28; ctx.fillStyle = '#7bd35a'; ctx.fillRect(p.x, p.y, 380, 1030); ctx.globalAlpha = 1; }
+  // wet patches
+  if (LEVELS[G.level] && LEVELS[G.level].rain) for (const w of M.wet) {
+    const p = worldToView(w.x, w.y); ctx.save(); ctx.translate(p.x, p.y); ctx.globalAlpha = 0.45; rr(-w.w / 2, -w.h / 2, w.w, w.h, 30); olFill('#7eb7d8', 3); ctx.restore();
+  }
+  // section floor mats: always tinted so kids can match colours, pulsing when needed
+  const needIds = G.phase === 'play' ? remainingList().map(it => it.shop) : [];
+  for (const s of M.shops) {
+    const p = worldToView(s.zone.x, s.zone.y), need = needIds.includes(s.id);
+    ctx.save(); ctx.globalAlpha = need ? 0.55 + Math.sin(G.t * 6) * 0.2 : 0.22;
+    circ(p.x, p.y, s.zone.r - 8); ctx.fillStyle = s.col; ctx.fill(); ctx.lineWidth = need ? 5 : 3; ctx.setLineDash(need ? [] : [10, 8]); ctx.strokeStyle = need ? s.col2 : OL; ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  }
+  // guide dots toward the next target
+  drawGuide();
+  // fixtures
+  for (const s of M.solids) drawSolid(s);
+  drawEntry();
+  drawQueues();
+  // signs for each section (on top of the fixtures so they are always readable)
+  for (const s of M.shops) drawSectionSign(s);
   if (LEVELS[G.level] && LEVELS[G.level].rain) for (const w of M.wet) drawWetSign(w.x + w.w / 2 - 10, w.y - w.h / 2 - 8);
-  if (LEVELS[G.level] && LEVELS[G.level].xmas) drawXmasBits();
   // dropped items
   for (const it of G.list) if (it.stolen && it.dropX != null) {
-    const v = worldToView(it.dropX, it.dropY); drawItemIcon(it.id, v.x, v.y, 1.1); txt('!', v.x + 16, v.y - 16, 16, '#ff9f1c');
+    const v = worldToView(it.dropX, it.dropY); drawItemIcon(it.id, v.x, v.y, 1.3); txt('!', v.x + 18, v.y - 18, 18, '#ff9f1c');
   }
   // y-sort
   const list = [];
   for (const s of G.shoppers) list.push({ y: s.y + 8, f: () => drawShopper(s) });
   for (const b of G.ibises) list.push({ y: b.y + 8, f: () => drawIbis(b) });
-  if (G.trolley) list.push({ y: G.trolley.y + 12, f: () => drawTrolley(G.trolley) });
+  if (G.trolley && G.phase !== 'title') list.push({ y: G.trolley.y + 12, f: () => drawTrolley(G.trolley) });
   list.sort((a, b) => a.y - b.y); for (const o of list) o.f();
-  if (G.phase === 'play' && G.list.length && remainingList().length === 0 && !G.list.some(x => x.stolen) && G.basket.length === G.list.length) {
-    const c = M.checkout, p = worldToView(c.x, c.y - c.h / 2 - 70);
-    ctx.globalAlpha = 0.7 + Math.sin(G.t * 5) * 0.25;
-    rr(p.x - 90, p.y - 12, 180, 24, 10); olFill('#ffe11a', 3);
-    ctx.globalAlpha = 1; txt('CHECK OUT!', p.x, p.y, 16, OL);
+  // HERE! tags over needed sections
+  for (const s of M.shops) if (needIds.includes(s.id)) {
+    const p = worldToView(s.zone.x, s.zone.y - s.zone.r - 14 + Math.sin(G.t * 6) * 4);
+    const it = G.list.find(x => x.shop === s.id && !x.got && !x.stolen);
+    rr(p.x - 44, p.y - 18, 88, 36, 14); olFill('#fff', 3);
+    if (it) drawItemIcon(it.id, p.x - 22, p.y, 1.1);
+    txt('HERE', p.x + 14, p.y, 13, s.col2);
   }
+  if (G.phase === 'play' && G.list.length && remainingList().length === 0 && !G.list.some(x => x.stolen) && G.basket.length === G.list.length) {
+    const p = worldToView(670, 945);
+    ctx.globalAlpha = 0.75 + Math.sin(G.t * 5) * 0.25;
+    rr(p.x - 110, p.y - 15, 220, 30, 12); olFill('#ffe11a', 3);
+    ctx.globalAlpha = 1; txt('CHECK OUT HERE!', p.x, p.y, 16, OL);
+  }
+  if (LEVELS[G.level] && LEVELS[G.level].xmas) drawXmasBits();
   if (LEVELS[G.level] && LEVELS[G.level].rain) drawRain();
 }
-
-function drawShop(s) {
-  const p = worldToView(s.x, s.y);
-  ctx.save(); ctx.translate(p.x, p.y);
-  // roof
-  ctx.beginPath(); ctx.moveTo(-8, 40); ctx.lineTo(s.w / 2, -18); ctx.lineTo(s.w + 8, 40); ctx.closePath(); olFill(theme().roof, 4);
-  rr(0, 28, s.w, s.h - 20, 8); olFill(s.wall, 4);
-  // awning
-  rr(10, 22, s.w - 20, 22, 4); olFill(s.wall2, 3);
-  // windows
-  for (let i = 0; i < 3; i++) { rr(24 + i * (s.w - 80) / 3, 70, 54, 54, 6); olFill('#cfefff', 3); }
-  // door
-  const dx = s.w / 2 - 22; rr(dx, s.h - 86, 44, 66, 6); olFill('#6b3a1f', 3);
-  // sign hangs below the windows so the score plate does not cover the name
-  rr(s.w / 2 - 110, 132, 220, 28, 8); olFill(s.sign, 3);
-  txt(s.short, s.w / 2, 146, 16, OL);
-  if (LEVELS[G.level] && LEVELS[G.level].xmas) {
-    // tinsel along the awning
-    ctx.strokeStyle = '#c81e3a'; ctx.lineWidth = 3; ctx.beginPath();
-    ctx.moveTo(16, 30);
-    for (let i = 0; i <= 10; i++) ctx.lineTo(16 + i * (s.w - 32) / 10, 30 + Math.sin(i + G.t * 2) * 5);
-    ctx.stroke();
-  }
-  // highlight if this shop is needed
-  const need = remainingList().some(it => it.shop === s.id);
-  if (need && G.phase === 'play') {
-    ctx.globalAlpha = 0.55 + Math.sin(G.t * 5) * 0.25;
-    rr(s.w / 2 - 70, s.h + 8, 140, 18, 8); olFill('#7be36b', 3);
-    ctx.globalAlpha = 1; txt('HERE!', s.w / 2, s.h + 17, 13, '#fff');
-  }
-  ctx.restore();
-}
-function drawCheckout(c) {
-  const p = worldToView(c.x - c.w / 2, c.y - c.h / 2);
-  ctx.save(); ctx.translate(p.x, p.y);
-  rr(0, 0, c.w, c.h, 10); olFill('#f4e2c0', 4);
-  rr(10, 10, c.w - 20, 36, 8); olFill('#2c5aa0', 3);
-  txt('THE TILLS', c.w / 2, 28, 18, '#fff');
-  // three lanes
-  for (let i = 0; i < 3; i++) { rr(18 + i * 100, 58, 86, 90, 6); olFill('#d8c4a0', 3); circ(60 + i * 100, 90, 10); olFill('#ffc928', 2); }
-  ctx.restore();
-}
-function drawPlant(p) {
-  const v = worldToView(p.x, p.y);
-  if (p.kind === 'fountain') {
-    shadowAt(v.x, v.y + 14, 52, 0.18);
-    rr(v.x - 50, v.y + 6, 100, 24, 10); olFill('#8a8f7a', 3);
-    circ(v.x, v.y, 46); olFill('#9aa7b8', 4);
-    circ(v.x, v.y, 34); olFill('#6eb0d0', 3);
-    rr(v.x - 8, v.y - 16, 16, 24, 4); olFill('#9aa7b8', 3);
-    circ(v.x, v.y - 20, 11); olFill('#b8c4d0', 2);
-    for (let i = 0; i < 6; i++) {
-      const a = G.t * 3 + i * 1.047, h = 18 + Math.sin(G.t * 6 + i) * 7;
-      ctx.strokeStyle = 'rgba(200,230,255,.9)'; ctx.lineWidth = 2.2;
-      ctx.beginPath(); ctx.moveTo(v.x, v.y - 20);
-      ctx.quadraticCurveTo(v.x + Math.cos(a) * 16, v.y - 20 - h, v.x + Math.cos(a) * 24, v.y - 4);
-      ctx.stroke();
+function drawGuide() {
+  const g = G.guide, t = G.trolley;
+  if (!g || !t || G.phase !== 'play' || g.length < 2) return;
+  let left = 900, first = true;
+  const phase = (G.t * 90) % 36;
+  for (let k = 0; k < g.length - 1 && left > 0; k++) {
+    const a = first ? { x: t.x, y: t.y } : g[k], b = g[k + 1]; first = false;
+    const L = dist(a.x, a.y, b.x, b.y);
+    for (let d = (k === 0 ? 40 : 0) + phase; d < L && left > 0; d += 36, left -= 36) {
+      const x = a.x + (b.x - a.x) * d / L, y = a.y + (b.y - a.y) * d / L, v = worldToView(x, y);
+      ctx.globalAlpha = Math.min(0.9, left / 300); circ(v.x, v.y, 6); olFill('#ffe11a', 2.5);
     }
-  } else {
-    shadowAt(v.x, v.y + 6, 22, 0.2);
-    circ(v.x, v.y, 22); olFill(theme().plant, 3);
-    circ(v.x - 10, v.y - 8, 12); olFill(theme().plant, 3);
-    circ(v.x + 8, v.y - 10, 11); olFill('#4e9a36', 3);
   }
+  ctx.globalAlpha = 1;
 }
-function drawBench(x, y) {
-  const v = worldToView(x, y);
-  rr(v.x - 28, v.y - 8, 56, 14, 4); olFill('#8a5a2a', 3);
-  rr(v.x - 28, v.y + 4, 8, 10, 2); olFill('#6b3a1f', 2);
-  rr(v.x + 20, v.y + 4, 8, 10, 2); olFill('#6b3a1f', 2);
+function secCol(id) { const s = SHOPS.find(x => x.id === id); return s || { col: '#d9c4a0', col2: '#a8794a' }; }
+function drawSolid(s) {
+  const th = theme();
+  if (s.kind === 'wall') {
+    const p = worldToView(s.x, s.y); rr(p.x, p.y, s.w, s.h, 0); ctx.fillStyle = th.brick; ctx.fill(); return;
+  }
+  const p = worldToView(s.x, s.y);
+  if (p.x > G.W + 40 || p.y > G.H + 40 || p.x + s.w < -40 || p.y + s.h < -40) return;
+  ctx.save(); ctx.translate(p.x, p.y);
+  if (s.kind === 'counter') {
+    const c = secCol(s.sec);
+    shadowAt(s.w / 2, s.h + 4, s.w / 2, 0.12);
+    rr(0, 0, s.w, s.h, 10); olFill(c.col2, 4);
+    rr(8, 8, s.w - 16, s.h - 22, 8); olFill(c.col, 3);
+    // goods on the shelf
+    const items = { bakery: 'bread', frozen: 'icecream', dairy: 'milk', bulk: 'lollies', produce: 'apples', hotbar: 'sausages' };
+    const icon = items[s.sec], alt = { produce: ['apples', 'carrots', 'cherries'], bakery: ['bread', 'gingerbread'], hotbar: ['sausages', 'ham'] }[s.sec];
+    if (s.w > s.h) { for (let x = 30; x < s.w - 20; x += 44) drawItemIcon(alt ? alt[(x / 44 | 0) % alt.length] : icon, x, s.h / 2 - 2, 1.1); }
+    else { for (let y = 30; y < s.h - 20; y += 44) drawItemIcon(alt ? alt[(y / 44 | 0) % alt.length] : icon, s.w / 2, y, 1.1); }
+  } else if (s.kind === 'gondola') {
+    const c = s.sec ? secCol(s.sec) : { col: '#e9d3a8', col2: '#b8925a' };
+    shadowAt(s.w / 2, s.h + 4, s.w / 2 + 6, 0.14);
+    rr(0, 0, s.w, s.h, 10); olFill(c.col2, 4);
+    const prod = ['#ff6b6b', '#4da3ff', '#ffe11a', '#7be36b', '#ff9f1c', '#c9a0ff'];
+    for (let y = 14; y < s.h - 10; y += 22) for (let x = 8; x < s.w - 8; x += 15) {
+      ctx.fillStyle = s.sec ? (((x + y) / 7 | 0) % 2 ? c.col : '#fff') : prod[((x * 3 + y) / 11 | 0) % prod.length];
+      ctx.fillRect(x, y, 11, 15);
+    }
+    ctx.lineWidth = 2; ctx.strokeStyle = OL; ctx.beginPath(); ctx.moveTo(s.w / 2, 8); ctx.lineTo(s.w / 2, s.h - 8); ctx.stroke();
+    if (!s.sec && s.label) { // end-cap labels for the plain grocery aisles
+      rr(-24, s.h + 6, s.w + 48, 24, 8); olFill('#fff8e6', 3); txt(s.label, s.w / 2, s.h + 18, 12, OL);
+    }
+  } else if (s.kind === 'island') {
+    const c = secCol(s.sec);
+    rr(0, 0, s.w, s.h, 16); olFill(c.col2, 4); rr(8, 8, s.w - 16, s.h - 16, 10); olFill(c.col, 3);
+    for (let x = 26; x < s.w - 10; x += 36) drawItemIcon(LEVELS[G.level] && LEVELS[G.level].xmas ? 'cards' : (x / 36 | 0) % 2 ? 'cards' : 'lollies', x, s.h / 2, 1.1);
+  } else if (s.kind === 'receiving') {
+    rr(0, 0, s.w, s.h, 6); olFill('#9aa3ad', 4);
+    for (let i = 0; i < 4; i++) { rr(16 + i * 50, 20, 40, 34, 4); olFill('#c9a06a', 3); }
+    rr(s.w - 110, 20, 90, 60, 6); olFill('#c9a06a', 3);
+    // roller door (open) the bin chicken uses
+    rr(s.w / 2 - 60, s.h - 54, 120, 54, 4); olFill('#3b3f4a', 3);
+    ctx.strokeStyle = '#f3c12b'; ctx.lineWidth = 6; ctx.setLineDash([12, 10]); ctx.beginPath(); ctx.moveTo(s.w / 2 - 60, s.h - 3); ctx.lineTo(s.w / 2 + 60, s.h - 3); ctx.stroke(); ctx.setLineDash([]);
+    rr(10, s.h - 92, 150, 30, 8); olFill('#fff8e6', 3); txt('STOCK & RECEIVING', 85, s.h - 77, 12, OL);
+  } else if (s.kind === 'till') {
+    rr(0, 0, s.w, s.h, 8); olFill('#5f6b7a', 3);
+    rr(8, 8, s.w - 16, s.h - 50, 4); ctx.fillStyle = '#2b2b38'; ctx.fill();
+    for (let y = 12; y < s.h - 46; y += 10) { ctx.fillStyle = '#4a4a5a'; ctx.fillRect(10, y + ((G.t * 30) % 10), s.w - 20, 2); }
+    rr(4, s.h - 38, s.w - 8, 30, 6); olFill('#e8e2d4', 3);
+    circ(s.w / 2, s.h - 23, 6); olFill('#7be36b', 2);
+  } else if (s.kind === 'cafe') {
+    rr(0, 0, s.w, s.h, 10); ctx.fillStyle = '#efd9b4'; ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = '#8a5a2a'; ctx.stroke();
+    [[70, 70], [190, 70], [310, 70], [70, 170], [190, 170], [310, 170]].forEach(([x, y]) => {
+      circ(x, y, 24); olFill('#fff', 3); circ(x - 30, y, 9); olFill('#e07a4a', 2); circ(x + 30, y, 9); olFill('#e07a4a', 2);
+      circ(x, y, 6); ctx.fillStyle = '#8a5a2a'; ctx.fill();
+    });
+    rr(s.w / 2 - 50, -12, 100, 26, 8); olFill('#8a5a2a', 3); txt('CAFÉ', s.w / 2, 1, 14, '#fff');
+  } else if (s.kind === 'floral') {
+    rr(0, 0, s.w, s.h, 12); olFill('#7a5aa8', 3);
+    const fl = ['#ff7ad9', '#ffe11a', '#fff', '#ff6b6b'];
+    for (let i = 0; i < 8; i++) { circ(14 + (i % 4) * 20, 18 + (i >> 2) * 32, 8); olFill(fl[i % 4], 2); }
+  } else if (s.kind === 'carts') {
+    for (let i = 0; i < 4; i++) { rr(4 + i * 20, 6, 40, 40, 5); olFill(i % 2 ? th.trolley : th.trolley2, 2); }
+  }
+  ctx.restore();
 }
-function drawBin(x, y) {
-  const v = worldToView(x, y);
-  shadowAt(v.x, v.y + 8, 12, 0.2);
-  rr(v.x - 12, v.y - 16, 24, 28, 4); olFill('#3d5a3a', 3);
-  rr(v.x - 14, v.y - 20, 28, 8, 3); olFill('#2c4a2a', 3);
+function hudRects() {
+  if (G.phase !== 'play' || G.hideHud) return [];
+  const hy = G.L.hudY || 34, W = G.W, n = (G.list || []).length;
+  return [{ x: W / 2 - 150, y: hy - 8, w: 300, h: 62 }, { x: W - 168, y: hy - 4, w: 76, h: 40 }, { x: 16, y: hy + 70, w: 168, h: 22 + n * 36 }];
+}
+function drawSectionSign(s) {
+  // big hanging sign: colour + name, placed over the fixture on the side facing the aisle
+  let x, y;
+  if (s.face === 'down') { x = s.x + s.w / 2; y = s.y + s.h + 4; }
+  else if (s.face === 'right') { x = s.x + s.w / 2 + (s.solid.kind === 'gondola' ? 0 : 20); y = s.y - 22; }
+  else if (s.face === 'left') { x = s.x + s.w / 2 - 30; y = s.y + s.h / 2 - 140; }
+  else { x = s.x + s.w / 2; y = s.y - 16; }
+  const p = worldToView(x, y);
+  if (p.x < -200 || p.x > G.W + 200 || p.y < -60 || p.y > G.H + 60) return;
+  ctx.font = '900 18px ' + FONT; const w = Math.max(96, ctx.measureText(s.name).width + 30);
+  // never hide a sign under the score plate, timer or list: slide it down below them
+  for (const r of hudRects()) {
+    if (p.x + w / 2 > r.x && p.x - w / 2 < r.x + r.w && p.y + 17 > r.y && p.y - 17 < r.y + r.h) p.y = r.y + r.h + 22;
+  }
+  rr(p.x - w / 2, p.y - 17, w, 34, 12); olFill(s.col, 4);
+  txt(s.name, p.x, p.y, 18, '#fff');
+}
+function drawEntry() {
+  const e = G.map.entry, th = theme();
+  const p = worldToView(e.doorX, MAPH - 40);
+  rr(p.x, p.y - 8, e.doorW, 48, 6); olFill('#cfefff', 3);
+  ctx.strokeStyle = OL; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x + e.doorW / 2, p.y - 8); ctx.lineTo(p.x + e.doorW / 2, p.y + 40); ctx.stroke();
+  rr(p.x + e.doorW / 2 - 70, p.y - 34, 140, 26, 10); olFill('#2e8b4a', 3); txt('ENTRY', p.x + e.doorW / 2, p.y - 21, 15, '#fff');
+  // store name across the bottom wall
+  const q = worldToView(MAPW / 2 + 520, MAPH - 20); txt(th.centreName, q.x, q.y, 16, th.trim);
+  // welcome mat arrow
+  const m = worldToView(e.x, e.y - 60);
+  if (G.phase === 'play' && G.levelFlash > 0) { txt('▲', m.x, m.y, 26, '#ffe11a'); }
+}
+function drawQueues() {
+  const M = G.map; if (!M.lanes || !G.queues) return;
+  const short = shortLanes();
+  const cols = ['#ff5a6a', '#4da3ff', '#ff9f1c', '#c9a0ff', '#7be36b'];
+  for (const ln of M.lanes) {
+    const n = G.queues[ln.i] || 0;
+    for (let k = 0; k < n; k++) {
+      const v = worldToView(ln.x - 37, ln.y - 20 - k * 30);
+      shadowAt(v.x, v.y + 8, 10, 0.2);
+      rr(v.x - 8, v.y - 8, 16, 16, 5); olFill(cols[(ln.i * 2 + k) % cols.length], 2.5);
+      circ(v.x, v.y - 17, 7); olFill('#f4c9a3', 2.5);
+    }
+    const b = worldToView(ln.x, ln.y - 110);
+    const isShort = short.includes(ln.i);
+    rr(b.x - 34, b.y - 15, 68, 30, 12); olFill(isShort ? '#7be36b' : '#fff', 3);
+    txt(isShort ? 'SHORT!' : n + ' wait', b.x, b.y, 13, isShort ? '#fff' : OL);
+    const lp = worldToView(ln.x, ln.y + 40); txt(String(ln.i + 1), lp.x, lp.y, 14, '#ffe11a');
+  }
 }
 function drawWetSign(x, y) {
   const v = worldToView(x, y);
@@ -865,22 +1115,28 @@ function drawWetSign(x, y) {
   ctx.restore();
 }
 function drawXmasBits() {
-  // bunting across the concourse
-  const a = worldToView(200, 420), b = worldToView(2000, 420);
-  ctx.strokeStyle = OL; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  // bunting across the front aisle and over the back aisle
   const cols = ['#c81e3a', '#2e8b4a', '#ffe11a', '#fff'];
-  for (let i = 0; i < 18; i++) {
-    const x = lerp(a.x, b.x, i / 17), y = lerp(a.y, b.y, i / 17);
-    ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x, y + 16); ctx.lineTo(x + 8, y); olFill(cols[i % 4], 2);
-  }
+  [[120, 800, 1840, 800], [120, 320, 1560, 320]].forEach(([ax, ay, bx, by]) => {
+    const a = worldToView(ax, ay), b = worldToView(bx, by);
+    ctx.strokeStyle = OL; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    for (let i = 0; i < 24; i++) {
+      const x = lerp(a.x, b.x, i / 23), y = lerp(a.y, b.y, i / 23);
+      ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x, y + 16); ctx.lineTo(x + 8, y); olFill(cols[i % 4], 2);
+    }
+  });
+  // a little tree by the entry
+  const t = worldToView(880, 1215);
+  ctx.beginPath(); ctx.moveTo(t.x, t.y - 46); ctx.lineTo(t.x + 22, t.y); ctx.lineTo(t.x - 22, t.y); ctx.closePath(); olFill('#2e8b4a', 3);
+  txt('★', t.x, t.y - 46, 16, '#ffe11a');
 }
 function drawRain() {
-  ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#cfefff'; ctx.lineWidth = 1.4;
-  const cam = G.cam;
-  for (let i = 0; i < 70; i++) {
-    const x = ((i * 97 + G.t * 180) % (G.W + 40)) - 20;
-    const y = ((i * 53 + G.t * 420) % (G.H + 40)) - 20;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 16); ctx.stroke();
+  // rain seen through the entry doors, plus drips on the floor near the doors
+  const e = G.map.entry, a = worldToView(e.doorX, MAPH - 46);
+  ctx.save(); ctx.strokeStyle = '#4da3ff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.7;
+  for (let i = 0; i < 14; i++) {
+    const x = a.x + 8 + ((i * 37 + G.t * 60) % (e.doorW - 16)), y = a.y + ((i * 17 + G.t * 160) % 40);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 3, y + 9); ctx.stroke();
   }
   ctx.restore();
   if (Math.random() < 0.02) sfx('rainSoft');
@@ -897,8 +1153,11 @@ function drawItemIcon(id, x, y, sc) {
   else if (id === 'sausages') { rr(-12, -4, 20, 7, 3); olFill('#c45c48', 2); rr(-6, 2, 20, 7, 3); olFill('#8a3a30', 2); }
   else if (id === 'ham') { circ(0, 0, 10); olFill('#e07a8a', 2); circ(2, -2, 4); olFill('#f4c4cc', 1); }
   else if (id === 'bandaids') { rr(-11, -5, 22, 10, 4); olFill('#e8c878', 2); ctx.fillStyle = '#fff4d6'; ctx.fillRect(-3, -5, 6, 10); }
-  else if (id === 'paper') { rr(-9, -10, 18, 20, 2); olFill('#f6f1e4', 2); }
   else if (id === 'cards') { rr(-8, -10, 16, 20, 2); olFill('#c81e3a', 2); txt('♥', 0, 0, 10, '#fff'); }
+  else if (id === 'milk') { rr(-7, -8, 14, 19, 2); olFill('#ffffff', 2); ctx.beginPath(); ctx.moveTo(-7, -8); ctx.lineTo(0, -14); ctx.lineTo(7, -8); ctx.closePath(); olFill('#4da3ff', 2); ctx.fillStyle = '#4da3ff'; ctx.fillRect(-5, 0, 10, 5); }
+  else if (id === 'icecream') { ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(0, 13); ctx.lineTo(7, -2); ctx.closePath(); olFill('#e0a04a', 2); circ(0, -5, 8); olFill('#ffb3c6', 2); }
+  else if (id === 'juice') { rr(-6, -6, 12, 18, 3); olFill('#ff9f1c', 2); rr(-3, -12, 6, 7, 2); olFill('#3fae2a', 2); }
+  else if (id === 'lollies') { circ(0, 0, 6); olFill('#ff7ad9', 2); ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-13, -5); ctx.lineTo(-13, 5); ctx.closePath(); olFill('#ffe11a', 2); ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(13, -5); ctx.lineTo(13, 5); ctx.closePath(); olFill('#ffe11a', 2); }
   else { circ(0, 0, 8); olFill(it.cols[0], 2); }
   ctx.restore();
 }
@@ -1012,6 +1271,7 @@ function drawHUD() {
   rows.forEach((it, i) => {
     const y = listY + 36 + i * 34;
     if (it.got) { ctx.globalAlpha = 0.45; }
+    { const sc = shopById(it.shop); if (sc) { circ(listX + 22, y, 15); olFill(sc.col, 2); } }
     drawItemIcon(it.id, listX + 22, y, 1);
     const label = it.stolen ? 'Oh no!' : it.name;
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -1023,8 +1283,10 @@ function drawHUD() {
   // hints
   if (G.hint && G.hintT > 0) {
     ctx.globalAlpha = Math.min(1, G.hintT);
-    const yy = (G.L.port || G.usePads) ? H - 320 : H - 36;
-    rr(W / 2 - 260, yy - 18, 520, 36, 16); olFill('rgba(27,27,47,.85)', 3);
+    // portrait: just above the touch controls (the camera keeps the trolley and tills higher up)
+    const yy = G.L.port ? H - (G.L.padH || 0) - 26 : (G.usePads ? H - 36 - (G.L.padH || 0) : H - 36);
+    const hw = Math.min(520, W - 16);
+    rr(W / 2 - hw / 2, yy - 18, hw, 36, 16); olFill('rgba(27,27,47,.85)', 3);
     txt(G.hint, W / 2, yy, 16, '#fff'); ctx.globalAlpha = 1;
   }
   if (G.levelFlash > 0 && L) {
@@ -1034,49 +1296,55 @@ function drawHUD() {
   drawMinimap();
 }
 function drawMinimap() {
-  const W = G.W, H = G.H, s = 0.055, mw = MAPW * s, mh = MAPH * s;
-  const padLift = (G.L.port || G.usePads) ? 210 : 16;
-  const x = W - mw - 16, y = H - mh - padLift;
+  const W = G.W, H = G.H, s = 0.06, mw = MAPW * s, mh = MAPH * s;
+  // portrait: top-right under the timer, so it never covers the tills or the controls
+  const padLift = G.usePads ? 210 : 16;
+  const x = W - mw - 16, y = G.L.port ? (G.L.hudY || 34) + 52 : H - mh - padLift;
+  if (G.usePads && !G.L.port && G.trolley && G.trolley.y > 880) return; // landscape phone at the tills: hide it
   rr(x - 6, y - 6, mw + 12, mh + 12, 8); olFill('rgba(27,27,47,.75)', 3);
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   ctx.fillStyle = theme().floor; ctx.fillRect(0, 0, MAPW, MAPH);
   if (G.map) {
-    ctx.fillStyle = '#c45c48';
-    for (const s2 of G.map.shops) ctx.fillRect(s2.x, s2.y, s2.w, s2.h);
-    ctx.fillStyle = '#2c5aa0';
-    const c = G.map.checkout; ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
+    for (const so of G.map.solids) {
+      if (so.kind === 'wall') continue;
+      ctx.fillStyle = so.sec ? secCol(so.sec).col2 : so.kind === 'till' ? '#2c5aa0' : so.kind === 'receiving' ? '#6b7380' : '#b8925a';
+      ctx.fillRect(so.x, so.y, so.w, so.h);
+    }
+    const tg = G.phase === 'play' ? currentTarget() : null;
+    if (tg) { ctx.fillStyle = '#ffe11a'; circ(tg.x, tg.y, 40 + Math.sin(G.t * 6) * 10); ctx.fill(); }
   }
-  if (G.trolley) { ctx.fillStyle = '#ffe11a'; circ(G.trolley.x, G.trolley.y, 28); ctx.fill(); }
+  if (G.trolley) { ctx.fillStyle = '#fff'; circ(G.trolley.x, G.trolley.y, 34); ctx.fill(); ctx.fillStyle = '#ff4d6d'; circ(G.trolley.x, G.trolley.y, 22); ctx.fill(); }
   for (const b of G.ibises) { ctx.fillStyle = '#2b2b38'; circ(b.x, b.y, 22); ctx.fill(); }
   ctx.restore();
 }
 function drawPointer() {
-  if (G.phase !== 'play' || !G.trolley) return;
+  if (G.phase !== 'play' || !G.trolley || G.hideHud) return;
   if (G.hint && G.hintT > 0) return;
-  let tx, ty, label;
-  if (G.list.some(it => it.stolen)) {
-    const b = G.ibises.find(i => i.item) || G.ibises[0];
-    const drop = G.list.find(it => it.stolen && it.dropX != null);
-    if (drop) { tx = drop.dropX; ty = drop.dropY; label = 'Item'; }
-    else if (b) { tx = b.x; ty = b.y; label = 'Ibis!'; }
-  } else if (remainingList().length) {
-    const it = nextNeeded(), sh = shopById(it.shop);
-    if (sh) { tx = sh.zone.x; ty = sh.zone.y; label = it.name; }
-  } else {
-    tx = G.map.checkout.zone.x; ty = G.map.checkout.zone.y; label = 'Tills';
-  }
-  if (tx == null) return;
-  const v = worldToView(tx, ty);
+  const tg = currentTarget(); if (!tg) return;
+  const v = worldToView(tg.x, tg.y);
   if (v.x > 40 && v.x < G.W - 40 && v.y > 40 && v.y < G.H - 40) return;
   const cx = G.W / 2, cy = G.H / 2, ang = Math.atan2(v.y - cy, v.x - cx);
   const r = Math.min(G.W, G.H) * 0.38;
   const px = cx + Math.cos(ang) * r, py = cy + Math.sin(ang) * r;
   ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
   ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-12, 12); ctx.lineTo(-12, -12); ctx.closePath(); olFill('#ffe11a', 3);
-  ctx.rotate(-ang); txt(label || '', 0, 22, 13, '#fff');
+  ctx.rotate(-ang); txt(tg.label || '', 0, 22, 13, '#fff');
   ctx.restore();
 }
-
+/* Follow the walk grid to a point. Used by Little Kids tap-to-drive (and the test driver). */
+function autoDrive(tx, ty, mem, dt) {
+  const c = G.trolley; mem = mem || {};
+  mem.t = (mem.t || 0) - (dt || 1 / 60);
+  if (!mem.path || mem.t <= 0 || dist(mem.tx || 0, mem.ty || 0, tx, ty) > 50) { mem.path = pathTo(c.x, c.y, tx, ty) || [{ x: c.x, y: c.y }, { x: tx, y: ty }]; mem.k = 1; mem.t = 0.5; mem.tx = tx; mem.ty = ty; }
+  const P = mem.path;
+  while (mem.k < P.length - 1 && dist(c.x, c.y, P[mem.k].x, P[mem.k].y) < 46) mem.k++;
+  const wp = P[Math.min(mem.k, P.length - 1)], d = dist(c.x, c.y, tx, ty);
+  if (d < 18) return { throttle: 0, steer: 0, done: true };
+  const want = Math.atan2(wp.y - c.y, wp.x - c.x), ad = angNorm(want - c.a);
+  let steer = clamp(ad / 0.45, -1, 1), throttle = Math.abs(ad) > 1.2 ? 0.3 : (d < 70 ? 0.45 : 1);
+  if (Math.abs(ad) > 2.4) throttle = -0.4;
+  return { throttle, steer, done: false };
+}
 function readControls(dt) {
   let throttle = 0, steer = 0;
   if (keys.ArrowUp || keys.KeyW) throttle += 1;
@@ -1086,14 +1354,9 @@ function readControls(dt) {
   if (pads.go) throttle += 1; if (pads.rev) throttle -= 1;
   steer += pads.steer;
   if (G.littleKids && G.nav && G.phase === 'play') {
-    const c = G.trolley, d = dist(c.x, c.y, G.nav.x, G.nav.y);
-    if (d > 18) {
-      const want = Math.atan2(G.nav.y - c.y, G.nav.x - c.x);
-      const ad = angNorm(want - c.a);
-      steer += clamp(ad / 0.5, -1, 1);
-      if (Math.abs(ad) < 0.9) throttle += d < 50 ? 0.45 : 0.85;
-      if (Math.abs(ad) > 2.2) throttle -= 0.4;
-    } else G.nav = null;
+    const a = autoDrive(G.nav.x, G.nav.y, G.nav, dt);
+    if (a.done) G.nav = null;
+    else { steer += a.steer; throttle += a.throttle * (G.nav.slow ? 0.6 : 1); }
   }
   return { throttle: clamp(throttle, -1, 1), steer: clamp(steer, -1, 1) };
 }
@@ -1164,7 +1427,7 @@ addEventListener('resize', resize);
 resize(); buildMap(); titleWorld(); syncUI();
 requestAnimationFrame(frame);
 
-window.TT = { G, step, draw, startRound, endRound, startLevel, spawnPlayer, placeTrolley, applyDrive, updateShoppers, updateIbis, spawnIbis, shooIbis, ringBell, tryCollect, tryCheckout, trySteal, recoverFrom, buildMap, resize, CONFIG, THEMES, LEVELS, TITLE, SHOPS, ITEMS, Juice, remainingList, shopById, stealRear, medalFor, sfx, audioInit };
+window.TT = { G, step, draw, startRound, endRound, startLevel, spawnPlayer, placeTrolley, applyDrive, updateShoppers, updateIbis, spawnIbis, shooIbis, ringBell, tryCollect, tryCheckout, trySteal, recoverFrom, buildMap, resize, CONFIG, THEMES, LEVELS, TITLE, SHOPS, SECTIONS, ITEMS, Juice, remainingList, shopById, stealRear, medalFor, sfx, audioInit, pathTo, deadEnds, walkableAt, autoDrive, currentTarget, shortLanes, laneAt };
 window.BB = window.TT;
 </script>
 <!-- kz-ios-no-zoom script. Canonical: /workspace/gaming/ios-no-zoom-snippet.html -->
